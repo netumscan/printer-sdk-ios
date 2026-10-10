@@ -8,8 +8,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "CPrinterSDK",
-            url: "https://github.com/netumscan/printer-sdk-ios/releases/download/v0.2.0-preview.1/PrinterSDK.xcframework.zip",
-            checksum: "ee448c3ae09d277598a86853f0b80ae02e719bbe4d45fd9052c6ee2035653c28"
+            url: "https://github.com/netumscan/printer-sdk-ios/releases/download/v0.2.0-preview.2/PrinterSDK.xcframework.zip",
+            checksum: "c0e7afc018ef533ab5868867446897d77b6f6b0f6531c8639b1d3699287fdeab"
         ),
         .target(
             name: "PrinterSDK",
