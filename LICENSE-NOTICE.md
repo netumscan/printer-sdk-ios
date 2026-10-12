@@ -6,8 +6,18 @@ The Netum Printer SDK is proprietary software distributed under the
 The license permits application development and commercial application
 distribution without a separate runtime or commercial-use fee, subject to its
 terms. Standalone SDK redistribution, public mirroring, and source-code rights
-are restricted. Public headers, Swift wrappers, package manifests, examples, and
+are restricted. Public headers, Swift wrappers, SDK package manifests, and SDK
 documentation remain subject to the same license.
+
+NetumScan separately licenses its original sample source code, resources,
+projects, and documentation under MIT when accompanied by a sample `LICENSE`.
+This exception covers `samples/`, `platform/android/demo/`, and
+`platform/ios/Demo/`, and their exported applications in
+[`netumscan/printer-sdk-samples`](https://github.com/netumscan/printer-sdk-samples).
+See [sample licensing boundaries](samples/LICENSING.md). SDK implementation,
+binaries, headers, wrappers, and distribution materials are excluded from this
+MIT grant; third-party components and build tools retain their own terms.
+The SDK `LICENSE` and all already published SDK license files remain unchanged.
 
 ## Third-Party Notices
 
