@@ -23,8 +23,9 @@ The SDK `LICENSE` and all already published SDK license files remain unchanged.
 
 Third-party components remain subject to their own licenses. The SDK license
 does not replace any applicable redistribution or attribution obligations.
-Android packages include the Android NDK C++ shared runtime (`libc++_shared.so`);
-its notices must accompany the binary distribution and be taken from the NDK
+Android packages statically link the Android NDK C++ runtime into their native
+libraries, with runtime symbols hidden; no `libc++_shared.so` is bundled.
+Its notices must accompany the binary distribution and be taken from the NDK
 version used to build that release.
 
 Android and Apple platform SDKs and local build tools retain their respective

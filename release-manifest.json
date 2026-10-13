@@ -5,7 +5,7 @@
   "artifacts": {
     "release/PrinterSDK.xcframework.zip": "c0e7afc018ef533ab5868867446897d77b6f6b0f6531c8639b1d3699287fdeab"
   },
-  "binary_url": "https://github.com/netumscan/printer-sdk-ios/releases/download/v0.2.0-preview.3/PrinterSDK.xcframework.zip",
+  "binary_url": "https://github.com/netumscan/printer-sdk-ios/releases/download/v0.2.0-preview.4/PrinterSDK.xcframework.zip",
   "channel": "github-swiftpm",
   "framework_bundle_identifier": "com.netumscan.printersdk.core",
   "gpg_signed": null,
@@ -28,8 +28,15 @@
       "platform": "ios-simulator"
     }
   ],
-  "source_base_commit": "e09e4070800bcdbfcdb5171d9d2871986f8c57a5",
-  "source_input_sha256": "d7c55ed3c12fb7e5da43beee0c74ff0d8094b4ac20d14e92ced3bf71dc276131",
+  "software_verification": {
+    "hardware_verified": false,
+    "local_status": "passed",
+    "online_runtime_required": true,
+    "policy": "sdk-software-v1",
+    "report_sha256": "f2d73ffcaf1911670e0c511211caca92bd6e315356f5f2da3dfc4e7dd8e2444c"
+  },
+  "source_base_commit": "02be9735a3376c38863b2db0aef8dd40ece82c1c",
+  "source_input_sha256": "64b0c22686dd4aa896737f267913729a9de74c2f04f2864e91549453c38d4832",
   "source_is_worktree_snapshot": true,
-  "version": "0.2.0-preview.3"
+  "version": "0.2.0-preview.4"
 }
