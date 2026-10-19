@@ -1,8 +1,14 @@
 import Foundation
 
-public struct PrinterSDKError: LocalizedError, Equatable {
+public struct PrinterSDKError: LocalizedError, Equatable, Sendable {
     public let code: Int32
-    public init(_ code: Int32) { self.code = code }
+    public let diagnostic: ErrorDiagnostic?
+    public init(_ code: Int32) { self.code = code; self.diagnostic = nil }
+    public init(_ code: Int32, diagnostic: ErrorDiagnostic?) {
+        self.code = code; self.diagnostic = diagnostic
+    }
+    /// Error equality keeps its existing stable-code semantics; compare diagnostics separately.
+    public static func == (lhs: PrinterSDKError, rhs: PrinterSDKError) -> Bool { lhs.code == rhs.code }
     public var errorDescription: String? {
         let message: String
         switch code {
@@ -23,10 +29,11 @@ public struct PrinterSDKError: LocalizedError, Equatable {
         case 3000: message = "Invalid protocol response"
         default: message = "Unknown printer SDK error"
         }
-        return "\(message) (\(code))"
+        let details = diagnostic.flatMap { $0.message.isEmpty ? nil : $0.message }
+        return "\(message) (\(code))" + (details.map { ": \($0)" } ?? "")
     }
 }
-public struct CpclProfile {
+public struct CpclProfile: Sendable {
     public let dpi: UInt32
     public let widthDots: UInt32
     public let maxLabelHeightDots: UInt32
@@ -43,7 +50,7 @@ public struct CpclProfile {
         self.maxLabelHeightDots = maxLabelHeightDots; self.form = form
     }
 }
-public struct BLEOptions {
+public struct BLEOptions: Sendable {
     public let service: UUID
     public let writeCharacteristic: UUID
     public let withResponse: Bool
@@ -64,7 +71,7 @@ public struct BLEOptions {
     }
 }
 /// Data Transmission V1.2 notification characteristics in the selected service.
-public struct BLECreditFlowControl {
+public struct BLECreditFlowControl: Sendable {
     public let dataOut: UUID
     public let dataFC: UUID
     public init(dataOut: UUID, dataFC: UUID) {
@@ -72,7 +79,7 @@ public struct BLECreditFlowControl {
     }
 }
 /// Explicit receipt device configuration; hardware length limits remain unknown.
-public struct ReceiptProfile {
+public struct ReceiptProfile: Sendable {
     public let dpi: UInt32
     public let widthDots: UInt32
     public init(dpi: UInt32, widthDots: UInt32) throws {
@@ -81,24 +88,49 @@ public struct ReceiptProfile {
         self.dpi = dpi; self.widthDots = widthDots
     }
 }
-public enum CutMode: UInt32 { case none = 0, full = 1, partial = 2 }
-public enum FinishScope: UInt32 { case eachCopy = 0, endOfJob = 1 }
-public enum ConnectionState: UInt32 {
+public enum CutMode: UInt32, Sendable { case none = 0, full = 1, partial = 2 }
+public enum FinishScope: UInt32, Sendable { case eachCopy = 0, endOfJob = 1 }
+public enum ConnectionState: UInt32, Sendable {
     case disconnected = 0, connecting = 1, connected = 2, disconnecting = 3
 }
-public enum PrinterFeature: UInt32 {
+/// Local SDK execution only; idle does not confirm that paper has finished printing.
+public enum DeviceWorkState: UInt32, Sendable { case idle = 0, queued = 1, preparing = 2, sending = 3 }
+/// Hardware state requires printer evidence. Current standard protocols report unknown.
+public enum HardwareState: UInt32, Sendable { case unknown = 0 }
+public struct DeviceActiveOperation: Equatable, Sendable {
+    public let id: UInt64
+    public let kind: UInt32
+    public let state: UInt32
+}
+/// Consistent local observation without printer IO. Never use this as a submission precondition.
+public struct DeviceStateSnapshot: Equatable, Sendable {
+    public let connectionState: ConnectionState
+    public let workState: DeviceWorkState
+    /// Waiting business operations, excluding the active operation and internal connection work.
+    public let queuedCount: UInt32
+    public let activeOperation: DeviceActiveOperation?
+    public let hardwareState: HardwareState
+    public let hardwareKnownConditions: UInt32
+    public let hardwareActiveConditions: UInt32
+    /// nil when no hardware sample exists; measured on the native monotonic clock.
+    public let hardwareSampledMonotonicMilliseconds: UInt64?
+    /// Increments on each successful new connection; repeated connect while connected preserves it.
+    public let connectionGeneration: UInt64
+}
+public enum PrinterFeature: UInt32, Hashable, Sendable {
     case label = 1, receipt = 2, status = 3, media = 4, cut = 5, raw = 6, image = 7, feedToNextLabel = 8
 }
-public struct FeatureSupport {
+public struct FeatureSupport: Equatable, Sendable {
     public let implementation: UInt32
     public let deviceSupport: UInt32
     public let evidence: UInt32
+    public let supportedValues, requiredFields, knownFields, supportedFields: UInt32
     public var isImplemented: Bool { implementation != 0 }
     /// True only when device support is known. Explicit SPI configuration may remain unknown.
     public var isSupported: Bool { isImplemented && deviceSupport == 2 }
 }
 /// Independent result owned by PrintOperation; it remains readable after device close.
-public struct OperationSnapshot {
+public struct OperationSnapshot: Equatable, Sendable {
     public let id: UInt64
     public let kind: UInt32
     public let state: UInt32
@@ -117,15 +149,32 @@ struct IOControl {
     let timeout: TimeInterval
     let cancelled: () -> Bool
 }
-protocol BluetoothByteChannel: AnyObject {
+protocol BluetoothByteChannel: AnyObject, Sendable {
     func open(_ control: IOControl) throws
     func write(_ data: Data, _ control: IOControl) throws -> Int
+    func read(maxBytes: Int, _ control: IOControl) throws -> Data
     func close()
     var isOpen: Bool { get }
+    func setConnectionObserver(_ observer: ChannelConnectionObserver?)
+}
+extension BluetoothByteChannel {
+    func setConnectionObserver(_ observer: ChannelConnectionObserver?) {}
+    func read(maxBytes: Int, _ control: IOControl) throws -> Data { throw PrinterSDKError(1004) }
+}
+
+// Holds an independent native observer, never a borrowed device handle. Sessions capture
+// the epoch when opening, so a late callback cannot invalidate a replacement connection.
+final class ChannelConnectionObserver: Sendable {
+    let epoch: @Sendable () -> UInt64
+    let lost: @Sendable (UInt64, ErrorDiagnostic) -> Void
+    init(epoch: @escaping @Sendable () -> UInt64, lost: @escaping @Sendable (UInt64, ErrorDiagnostic) -> Void) {
+        self.epoch = epoch; self.lost = lost
+    }
 }
 
 // One asynchronous platform operation, with a single terminal result.
-final class IOResult<Value> {
+// NSCondition protects the one terminal result; values crossing queues must be Sendable.
+final class IOResult<Value: Sendable>: @unchecked Sendable {
     private let condition = NSCondition()
     private var result: Result<Value, PrinterSDKError>?
     var isPending: Bool {
@@ -150,6 +199,6 @@ final class IOResult<Value> {
 }
 
 /// Media mode independent of printer language. Protocol/firmware support requires verification.
-public enum MediaMode: UInt32, CaseIterable {
+public enum MediaMode: UInt32, CaseIterable, Sendable {
     case gap = 1, blackMark = 2, continuous = 3
 }

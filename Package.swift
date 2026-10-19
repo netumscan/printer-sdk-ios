@@ -1,6 +1,7 @@
 // swift-tools-version: 5.9
 import PackageDescription
 
+// Distribution 0.3.0-preview.2; native 0.3.0; ABI 3/r1; candidate contract.
 let package = Package(
     name: "PrinterSDK",
     platforms: [.iOS(.v15)],
@@ -8,8 +9,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "CPrinterSDK",
-            url: "https://github.com/netumscan/printer-sdk-ios/releases/download/v0.2.0-preview.4/PrinterSDK.xcframework.zip",
-            checksum: "c0e7afc018ef533ab5868867446897d77b6f6b0f6531c8639b1d3699287fdeab"
+            url: "https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.2/PrinterSDK.xcframework.zip",
+            checksum: "a051bb82339500d09567d507153036891315544ff08e3142fc228a87ed657a25"
         ),
         .target(
             name: "PrinterSDK",

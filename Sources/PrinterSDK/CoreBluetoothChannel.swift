@@ -2,15 +2,19 @@ import CoreBluetooth
 import Foundation
 
 // A fresh delegate/session per connection prevents stale callbacks crossing reconnects.
-final class CoreBluetoothChannel: BluetoothByteChannel {
+// lock protects session/observer. BLESession confines native Bluetooth handles to
+// its delegate queue; IOControl stays borrowed on the synchronous native IO caller.
+final class CoreBluetoothChannel: BluetoothByteChannel, @unchecked Sendable {
     private let lock = NSLock()
     private let identifier: UUID
     private let options: BLEOptions
     private var session: BLESession?
+    private var observer: ChannelConnectionObserver?
     init(identifier: UUID, options: BLEOptions) { self.identifier = identifier; self.options = options }
     func open(_ control: IOControl) throws {
         close()
-        let value = BLESession(identifier: identifier, options: options)
+        lock.lock(); let observer = observer; lock.unlock()
+        let value = BLESession(identifier: identifier, options: options, observer: observer)
         lock.lock(); session = value; lock.unlock()
         do { try value.open(control) } catch { value.close(); throw error }
     }
@@ -26,10 +30,15 @@ final class CoreBluetoothChannel: BluetoothByteChannel {
     var isOpen: Bool {
         lock.lock(); let value = session; lock.unlock(); return value?.isOpen ?? false
     }
+    func setConnectionObserver(_ observer: ChannelConnectionObserver?) {
+        lock.lock(); self.observer = observer; lock.unlock()
+    }
     deinit { close() }
 }
 
-private final class BLESession: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
+// Mutable session/native handles are accessed only on queue (including delegates);
+// synchronous entry points marshal there, and immutable Sendable values cross queues.
+private final class BLESession: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate, @unchecked Sendable {
     private let queue = DispatchQueue(label: "PrinterSDK.CoreBluetooth")
     private let identifier: UUID
     private let options: BLEOptions
@@ -45,8 +54,11 @@ private final class BLESession: NSObject, CBCentralManagerDelegate, CBPeripheral
     private var closed = false
     private var ready = false
     private var connecting = false
-    init(identifier: UUID, options: BLEOptions) {
-        self.identifier = identifier; self.options = options; super.init()
+    private let observer: ChannelConnectionObserver?
+    private let epoch: UInt64
+    init(identifier: UUID, options: BLEOptions, observer: ChannelConnectionObserver?) {
+        self.identifier = identifier; self.options = options; self.observer = observer
+        self.epoch = observer?.epoch() ?? 0; super.init()
     }
     var isOpen: Bool { queue.sync { ready && !closed } }
     func open(_ control: IOControl) throws {
@@ -58,13 +70,27 @@ private final class BLESession: NSObject, CBCentralManagerDelegate, CBPeripheral
         do { try opening.wait(control) } catch { close(); throw error }
     }
     func close() { queue.sync { stop(PrinterSDKError(2002)) } }
-    private func stop(_ error: PrinterSDKError) {
+    private func stop(_ error: PrinterSDKError, unexpected: Bool = false,
+                      nativeError: Error? = nil, managerState: CBManagerState? = nil) {
         guard !closed else { return }
+        let notify = unexpected && ready
+        let native = nativeError as NSError?
+        let knownDomain = native.map { $0.domain == CBErrorDomain || $0.domain == CBATTErrorDomain } ?? false
+        let diagnostic = transportDiagnostic(error.code,
+            nativeCode: managerState.map { Int64($0.rawValue) } ?? (knownDomain ? native.map { Int64($0.code) } : nil),
+            domain: managerState != nil ? "CoreBluetooth.State" : (knownDomain ? native!.domain : "CoreBluetooth"))
+        let failure = PrinterSDKError(error.code, diagnostic: diagnostic)
         closed = true; ready = false
-        opening.complete(.failure(error)); writing?.result.complete(.failure(error)); writing = nil
+        opening.complete(.failure(failure)); writing?.result.complete(.failure(failure)); writing = nil
         if let peripheral { central?.cancelPeripheralConnection(peripheral); peripheral.delegate = nil }
         central?.delegate = nil; peripheral = nil; characteristic = nil
         dataOut = nil; dataFC = nil; awaitingNotifications.removeAll(); credits = BLECredits()
+        if notify, let observer {
+            let epoch = epoch
+            // Native loss handling may close this channel. Never call it on the delegate
+            // queue, where close() waits synchronously for stop().
+            DispatchQueue.global(qos: .utility).async { observer.lost(epoch, diagnostic) }
+        }
     }
     func write(_ data: Data, _ control: IOControl) throws -> Int {
         let result = IOResult<Int>()
@@ -106,9 +132,9 @@ private final class BLESession: NSObject, CBCentralManagerDelegate, CBPeripheral
             }
             peripheral = found; found.delegate = self; central.connect(found, options: nil)
         case .unknown, .resetting:
-            if connecting { stop(PrinterSDKError(2002)) }
-        case .unsupported: stop(PrinterSDKError(1004))
-        default: stop(PrinterSDKError(1002))
+            if connecting { stop(PrinterSDKError(2002), unexpected: true, managerState: central.state) }
+        case .unsupported: stop(PrinterSDKError(1004), unexpected: true, managerState: central.state)
+        default: stop(PrinterSDKError(ready ? 2002 : 1002), unexpected: true, managerState: central.state)
         }
     }
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
@@ -116,15 +142,15 @@ private final class BLESession: NSObject, CBCentralManagerDelegate, CBPeripheral
         peripheral.discoverServices([CBUUID(nsuuid: options.service)])
     }
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-        if peripheral === self.peripheral { stop(PrinterSDKError(2002)) }
+        if peripheral === self.peripheral { stop(PrinterSDKError(2002), unexpected: true, nativeError: error) }
     }
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        if peripheral === self.peripheral { stop(PrinterSDKError(2002)) }
+        if peripheral === self.peripheral { stop(PrinterSDKError(2002), unexpected: true, nativeError: error) }
     }
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         guard !closed, peripheral === self.peripheral else { return }
         guard error == nil, let service = peripheral.services?.first(where: { $0.uuid == CBUUID(nsuuid: options.service) }) else {
-            stop(PrinterSDKError(1004)); return
+            stop(PrinterSDKError(1004), nativeError: error); return
         }
         var ids = [CBUUID(nsuuid: options.writeCharacteristic)]
         if let flow = options.creditFlowControl {
@@ -136,7 +162,7 @@ private final class BLESession: NSObject, CBCentralManagerDelegate, CBPeripheral
         guard !closed, peripheral === self.peripheral else { return }
         guard error == nil, let value = service.characteristics?.first(where: {
             $0.uuid == CBUUID(nsuuid: options.writeCharacteristic)
-        }) else { stop(PrinterSDKError(1004)); return }
+        }) else { stop(PrinterSDKError(1004), nativeError: error); return }
         let property: CBCharacteristicProperties = options.withResponse ? .write : .writeWithoutResponse
         guard value.properties.contains(property) else { stop(PrinterSDKError(1004)); return }
         characteristic = value
@@ -158,24 +184,26 @@ private final class BLESession: NSObject, CBCentralManagerDelegate, CBPeripheral
     }
     func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor value: CBCharacteristic, error: Error?) {
         guard !closed, peripheral === self.peripheral, value === dataOut || value === dataFC else { return }
-        guard error == nil, value.isNotifying else { stop(PrinterSDKError(2003)); return }
+        guard error == nil, value.isNotifying else {
+            stop(PrinterSDKError(2003), unexpected: true, nativeError: error); return
+        }
         awaitingNotifications.remove(value.uuid); finishOpening()
     }
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor value: CBCharacteristic, error: Error?) {
         guard !closed, peripheral === self.peripheral, value === dataOut || value === dataFC else { return }
-        guard error == nil else { stop(PrinterSDKError(2003)); return }
+        guard error == nil else { stop(PrinterSDKError(2003), unexpected: true, nativeError: error); return }
         // Data Out is subscribed, but no status/ACK contract exists; do not retain payloads.
         guard value === dataFC else { return }
         do {
             guard let data = value.value else { throw PrinterSDKError(3000) }
             try credits.receive(data)
             finishOpening(); sendIfReady()
-        } catch { stop(PrinterSDKError(3000)) }
+        } catch { stop(PrinterSDKError(3000), unexpected: true) }
     }
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
         guard !closed, peripheral === self.peripheral, characteristic === self.characteristic,
               options.withResponse, let write = writing else { return }
-        if error != nil { stop(PrinterSDKError(2003)); return }
+        if error != nil { stop(PrinterSDKError(2003), unexpected: true, nativeError: error); return }
         writing = nil; write.result.complete(.success(write.count))
     }
     func peripheralIsReady(toSendWriteWithoutResponse peripheral: CBPeripheral) {

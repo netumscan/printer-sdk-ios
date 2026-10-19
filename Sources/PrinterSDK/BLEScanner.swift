@@ -1,7 +1,7 @@
 import CoreBluetooth
 import Foundation
 
-public struct DiscoveredPrinter {
+public struct DiscoveredPrinter: Sendable {
     public let identifier: UUID
     public let name: String?
     public let advertisedServices: [String]
@@ -10,7 +10,7 @@ public struct DiscoveredPrinter {
 }
 
 /// Foreground discovery only. A discovered BLE device is not a verified printer.
-public final class BLEScanner {
+public final class BLEScanner: Sendable {
     private let implementation: BLEScanImplementation
     public init() {
         implementation = BLEScanImplementation(queue: DispatchQueue(label: "PrinterSDK.BLEScanner"),
@@ -18,8 +18,8 @@ public final class BLEScanner {
             scheduleDeadline: { DispatchBLEScanDeadline(queue: $0, seconds: $1, action: $2) })
     }
     // Internal injection exercises the same lifecycle without Bluetooth permissions or hardware.
-    init(queue: DispatchQueue, makeCentral: @escaping (DispatchQueue) -> BLEScanCentral,
-         scheduleDeadline: @escaping (DispatchQueue, TimeInterval, @escaping () -> Void) -> BLEScanDeadline) {
+    init(queue: DispatchQueue, makeCentral: @escaping @Sendable (DispatchQueue) -> BLEScanCentral,
+         scheduleDeadline: @escaping @Sendable (DispatchQueue, TimeInterval, @escaping @Sendable () -> Void) -> BLEScanDeadline) {
         implementation = BLEScanImplementation(queue: queue, makeCentral: makeCentral,
                                                scheduleDeadline: scheduleDeadline)
     }
@@ -28,7 +28,7 @@ public final class BLEScanner {
     /// stopping fails the active scan with 1005. A normal scan window may return an empty list.
     /// Results retain first-discovery order and contain no partial list on failure.
     public func scan(seconds: TimeInterval = 10, service: UUID? = nil,
-                     completion: @escaping (Result<[DiscoveredPrinter], PrinterSDKError>) -> Void) {
+                     completion: @escaping @Sendable (Result<[DiscoveredPrinter], PrinterSDKError>) -> Void) {
         implementation.scan(seconds: seconds, service: service, completion: completion)
     }
     /// Cancels the active scan, if any. The scanner can be reused after completion.
@@ -38,46 +38,49 @@ public final class BLEScanner {
 
 // Providers deliver events asynchronously on the supplied serial queue, after registration.
 // Native handles stay private to the adapter.
-protocol BLEScanCentral: AnyObject {
-    var stateChanged: ((BLEScanCentral, CBManagerState) -> Void)? { get set }
-    var discovered: ((BLEScanCentral, DiscoveredPrinter) -> Void)? { get set }
+protocol BLEScanCentral: AnyObject, Sendable {
+    var stateChanged: (@Sendable (BLEScanCentral, CBManagerState) -> Void)? { get set }
+    var discovered: (@Sendable (BLEScanCentral, DiscoveredPrinter) -> Void)? { get set }
     func start(service: UUID?)
     func stop()
     func detach()
 }
 
-protocol BLEScanDeadline {
+protocol BLEScanDeadline: Sendable {
     func cancel()
 }
 
-private final class DispatchBLEScanDeadline: BLEScanDeadline {
+// DispatchWorkItem.cancel is thread-safe; the item reference is immutable.
+private final class DispatchBLEScanDeadline: BLEScanDeadline, @unchecked Sendable {
     private let item: DispatchWorkItem
-    init(queue: DispatchQueue, seconds: TimeInterval, action: @escaping () -> Void) {
+    init(queue: DispatchQueue, seconds: TimeInterval, action: @escaping @Sendable () -> Void) {
         item = DispatchWorkItem(block: action)
         queue.asyncAfter(deadline: .now() + seconds, execute: item)
     }
     func cancel() { item.cancel() }
 }
 
-private final class BLEScanImplementation {
+// Mutable scan state is confined to the supplied serial queue, including provider
+// callbacks/deadlines. Only Sendable values/completion closures reach the main queue.
+private final class BLEScanImplementation: @unchecked Sendable {
     private let queue: DispatchQueue
-    private let makeCentral: (DispatchQueue) -> BLEScanCentral
-    private let scheduleDeadline: (DispatchQueue, TimeInterval, @escaping () -> Void) -> BLEScanDeadline
+    private let makeCentral: @Sendable (DispatchQueue) -> BLEScanCentral
+    private let scheduleDeadline: @Sendable (DispatchQueue, TimeInterval, @escaping @Sendable () -> Void) -> BLEScanDeadline
     private var central: BLEScanCentral?
     private var deadline: BLEScanDeadline?
-    private var completion: ((Result<[DiscoveredPrinter], PrinterSDKError>) -> Void)?
+    private var completion: (@Sendable (Result<[DiscoveredPrinter], PrinterSDKError>) -> Void)?
     private var found: [DiscoveredPrinter] = []
     private var foundIndices: [UUID: Int] = [:]
     private var filter: UUID?
     private var generation: UInt64 = 0
     private var scanning = false
 
-    init(queue: DispatchQueue, makeCentral: @escaping (DispatchQueue) -> BLEScanCentral,
-         scheduleDeadline: @escaping (DispatchQueue, TimeInterval, @escaping () -> Void) -> BLEScanDeadline) {
+    init(queue: DispatchQueue, makeCentral: @escaping @Sendable (DispatchQueue) -> BLEScanCentral,
+         scheduleDeadline: @escaping @Sendable (DispatchQueue, TimeInterval, @escaping @Sendable () -> Void) -> BLEScanDeadline) {
         self.queue = queue; self.makeCentral = makeCentral; self.scheduleDeadline = scheduleDeadline
     }
     func scan(seconds: TimeInterval = 10, service: UUID? = nil,
-                     completion: @escaping (Result<[DiscoveredPrinter], PrinterSDKError>) -> Void) {
+                     completion: @escaping @Sendable (Result<[DiscoveredPrinter], PrinterSDKError>) -> Void) {
         queue.async { [self] in
             guard seconds.isFinite, seconds > 0, seconds <= 60 else {
                 DispatchQueue.main.async { completion(.failure(PrinterSDKError(1001))) }; return
@@ -144,9 +147,11 @@ private func scanName(_ value: String?) -> String? {
     return name.isEmpty ? nil : name
 }
 
-private final class CoreBluetoothScanCentral: NSObject, BLEScanCentral, CBCentralManagerDelegate {
-    var stateChanged: ((BLEScanCentral, CBManagerState) -> Void)?
-    var discovered: ((BLEScanCentral, DiscoveredPrinter) -> Void)?
+// Providers, delegate events and callback property accesses share the scanner queue.
+// CoreBluetooth handles never cross it or escape this private adapter.
+private final class CoreBluetoothScanCentral: NSObject, BLEScanCentral, CBCentralManagerDelegate, @unchecked Sendable {
+    var stateChanged: (@Sendable (BLEScanCentral, CBManagerState) -> Void)?
+    var discovered: (@Sendable (BLEScanCentral, DiscoveredPrinter) -> Void)?
     private var central: CBCentralManager!
     init(queue: DispatchQueue) {
         super.init()

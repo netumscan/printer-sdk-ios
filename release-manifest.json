@@ -1,18 +1,23 @@
 {
-  "abi_revision": 10,
-  "abi_version": 2,
+  "abi_revision": 1,
+  "abi_version": 3,
   "archive": "PrinterSDK.xcframework.zip",
   "artifacts": {
-    "release/PrinterSDK.xcframework.zip": "c0e7afc018ef533ab5868867446897d77b6f6b0f6531c8639b1d3699287fdeab"
+    "release/PrinterSDK.xcframework.zip": "a051bb82339500d09567d507153036891315544ff08e3142fc228a87ed657a25"
   },
-  "binary_url": "https://github.com/netumscan/printer-sdk-ios/releases/download/v0.2.0-preview.4/PrinterSDK.xcframework.zip",
+  "binary_url": "https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.2/PrinterSDK.xcframework.zip",
   "channel": "github-swiftpm",
+  "contract_status": "candidate",
   "framework_bundle_identifier": "com.netumscan.printersdk.core",
   "gpg_signed": null,
   "hardware_verified": false,
   "platform": "ios",
-  "sdk_version": "0.2.0",
-  "sha256": "c0e7afc018ef533ab5868867446897d77b6f6b0f6531c8639b1d3699287fdeab",
+  "public_headers": [
+    "printer_sdk.h"
+  ],
+  "published_contract_verified": false,
+  "sdk_version": "0.3.0",
+  "sha256": "a051bb82339500d09567d507153036891315544ff08e3142fc228a87ed657a25",
   "slices": [
     {
       "architectures": [
@@ -32,11 +37,11 @@
     "hardware_verified": false,
     "local_status": "passed",
     "online_runtime_required": true,
-    "policy": "sdk-software-v1",
-    "report_sha256": "f2d73ffcaf1911670e0c511211caca92bd6e315356f5f2da3dfc4e7dd8e2444c"
+    "policy": "sdk-software-v2",
+    "report_sha256": "adccaa2860e6d789e32645d1e2b69edc5648aba7aab83e82cd01d22c486c05ce"
   },
-  "source_base_commit": "02be9735a3376c38863b2db0aef8dd40ece82c1c",
-  "source_input_sha256": "64b0c22686dd4aa896737f267913729a9de74c2f04f2864e91549453c38d4832",
+  "source_base_commit": "cb832e2f8034b395f44c25d2b7b6d67537a9f5f4",
+  "source_input_sha256": "a3143b3d0a828e3eacdaa5574f97ac73aa439da9e12fc57883c33160adfa7bfc",
   "source_is_worktree_snapshot": true,
-  "version": "0.2.0-preview.4"
+  "version": "0.3.0-preview.2"
 }
