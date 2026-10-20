@@ -74,6 +74,11 @@ CANDIDATE_CONTRACTS = {"0.3.0-preview.1": {
     "historical_baseline_version": "0.2.0-preview.3",
     "manifest_sha256": "57e9edb1a65fe73c4e74dfd9dff2a1902b4e7f240b337be10fa744356a7c4694",
     "c_baseline_sha256": "74a75132f39a83974d5f961a7f8ef2d209d0473e0a7850abf485f4270f2b7bc2",
+}, "0.3.0-preview.4": {
+    "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 2},
+    "historical_baseline_version": "0.2.0-preview.3", "c_export_count": 27,
+    "manifest_sha256": "40961a9f7c87d2b13b154ad6a5a0580bf11a373d71434e07634db43aae43a095",
+    "c_baseline_sha256": "8e2545006c49163742771ee9ddc2dad347f19eb963a93ec6ba9106086750b867",
 }}
 
 
@@ -336,7 +341,7 @@ def verify_candidate_bundle(history, reference):
     inits = [tokens[i + 2] + "_init" for i in range(len(tokens) - 3)
              if tokens[i:i + 2] == ["PSDK_INLINE_INIT", "("] and tokens[i + 2].startswith("psdk_")
              and tokens[i + 3] == ")"]
-    require(len(exports) == len(set(exports)) == 25 and sorted(exports) == c_manifest["exports"]
+    require(len(exports) == len(set(exports)) == policy.get("c_export_count", 25) and sorted(exports) == c_manifest["exports"]
             and len(structs) == len(set(structs)) == 25
             and len(inits) == len(set(inits)) == 25 and sorted(inits) == c_manifest["inline_initializers"],
             "Candidate C inventory differs")

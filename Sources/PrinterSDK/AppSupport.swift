@@ -1,11 +1,11 @@
 import CPrinterSDK
 import Foundation
 
-public enum DiagnosticSource: UInt32, Sendable {
+enum DiagnosticSource: UInt32, Sendable {
     case none = 0, connect = 1, operation = 2, transport = 3, userDisconnect = 4
 }
 /// Bounded diagnostic metadata. Native code is meaningful only with its domain.
-public struct ErrorDiagnostic: Equatable, Sendable {
+struct ErrorDiagnostic: Equatable, Sendable {
     public let sequence: UInt64
     public let connectionGeneration: UInt64
     public let transportEpoch: UInt64
@@ -18,7 +18,7 @@ public struct ErrorDiagnostic: Equatable, Sendable {
     public let message: String
 }
 /// Source payload admission only; this is not process memory or printer capacity.
-public struct ResourceSnapshot: Equatable, Sendable {
+struct ResourceSnapshot: Equatable, Sendable {
     public let maxImageBytes: UInt64
     public let maxJobImageBytes: UInt64
     public let maxRawBytes: UInt64
@@ -49,7 +49,7 @@ public struct StatusQueryConfiguration: Equatable, Sendable {
         self.printerProtocol = printerProtocol; self.queryTimeoutMilliseconds = queryTimeoutMilliseconds
     }
 }
-public struct HardwareStatusResult: Equatable, Sendable {
+struct HardwareStatusResult: Equatable, Sendable {
     public let knownConditions: UInt32
     public let activeConditions: UInt32
     public let sampledMonotonicMilliseconds: UInt64
@@ -74,12 +74,12 @@ public struct PrinterCapabilities: Sendable {
     public let geometry: PrinterGeometry
 }
 /// One immutable terminal result; the hardware response is nil unless the SDK verified one.
-public struct OperationResult: Equatable, Sendable {
+struct OperationResult: Equatable, Sendable {
     public let snapshot: OperationSnapshot
     public let diagnostic: ErrorDiagnostic
     public let status: HardwareStatusResult?
 }
-public enum PrinterSDK {
+enum PrinterSDK {
     public static func info() throws -> SDKInfo {
         try requireCurrentABI()
         var value = psdk_sdk_info()

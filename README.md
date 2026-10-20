@@ -1,6 +1,6 @@
 # printer-sdk-ios
 
-NETUM Printer SDK iOS 开发预览 **0.3.0-preview.2**：核心 SDK 0.3.0，C ABI 3/r1。
+NETUM Printer SDK iOS 开发预览 **0.3.0-preview.4**：核心 SDK 0.3.0，C ABI 3/r2。
 冻结契约状态为 `candidate`；文档本身不作为在线发布或硬件认证证明。
 Framework Bundle ID 为 `com.netumscan.printersdk.core`；Swift 模块为 `PrinterSDK`，C 模块为 `CPrinterSDK`。
 ABI 3 仅包含 `printer_sdk.h`，与 ABI 2 二进制不兼容；旧版标签及历史附件保持不变。
@@ -16,13 +16,13 @@ Swift 包装源码与 C 头供集成使用，C++ 核心只以二进制分发。
 准备目录中的 `Package.swift` 记录将来的精确版本 URL 和校验和；上传前该 URL 可能不存在。
 本地独立 Consumer 验证会把 binary target 临时改为本地 XCFramework 路径，不需要远端依赖。
 
-发布经单独授权并验证后，Xcode Package Dependencies 才可选择以下仓库及 Exact Version `0.3.0-preview.2`：
+发布经单独授权并验证后，Xcode Package Dependencies 才可选择以下仓库及 Exact Version `0.3.0-preview.4`：
 
 ```swift
-.package(url: "https://github.com/netumscan/printer-sdk-ios", exact: "0.3.0-preview.2")
+.package(url: "https://github.com/netumscan/printer-sdk-ios", exact: "0.3.0-preview.4")
 ```
 
-候选二进制 URL：[https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.2/PrinterSDK.xcframework.zip](https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.2/PrinterSDK.xcframework.zip)。这段配置本身不是在线可用性证明。
+候选二进制 URL：[https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.4/PrinterSDK.xcframework.zip](https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.4/PrinterSDK.xcframework.zip)。这段配置本身不是在线可用性证明。
 
 ## App 生命周期
 
@@ -33,34 +33,34 @@ App `Info.plist` 须设置 `NSBluetoothAlwaysUsageDescription`。蓝牙 UUID、�
 import Foundation
 import PrinterSDK
 
-func connect(manager: PrinterManager, identifier: UUID,
-             options: BLEOptions) async throws -> MobilePrinter {
-    let printer = try manager.printer(bleIdentifier: identifier, options: options)
-    try await manager.connect(printer)
-    return printer // manager owns this borrowed device
+func connect(manager: PrinterManager, identifier: UUID, options: BLEOptions) {
+    manager.connect(bleIdentifier: identifier, options: options, completion: { result in
+        print("connect:", result.code)
+    }, onDisconnected: { result in
+        print("disconnected:", result.code)
+    })
 }
 
-// Run image processing and submission on an App worker. Retain the returned operation.
-func submit(printer: MobilePrinter, pixels: Data,
-            profile: CpclProfile) throws -> PrintOperation {
-    let operation = try printer.submitGray8(pixels, width: 8, height: 1, profile: profile)
-    try operation.onComplete { result in // main queue by default; one copied terminal result
-        print(result.snapshot.errorCode, result.snapshot.bytesSent)
-    }
-    return operation
+func submit(manager: PrinterManager, pixels: Data, profile: CpclProfile) -> RequestID {
+    manager.print(profile: profile, preparation: { cancellation in
+        try cancellation.checkCancellation()
+        return PreparedPrint(label: LabelJobOptions(widthDots: profile.widthDots,
+            heightDots: 1, dpi: profile.dpi),
+            elements: [.image(Pixels(data: pixels, width: 8, height: 1))])
+    }, completion: { result in
+        print(result.code, result.completion, result.outputMayHaveOccurred)
+    })
 }
 ```
 
-通过 `printer.observeState { snapshot in ... }` 订阅连接、工作和队列状态，保留返回的
-`ObservationSubscription`，离开页面时调用 `cancel()`；硬件状态目前为未知。
-取消任务用 `try operation.cancel()`。`operation.close()` 释放调用方访问权，已经注册的完成回调仍会兑现；
-退订回调用订阅 token 的 `cancel()`，不会取消打印任务。结束时 `await manager.release(printer)`，
-或由独占 manager 的拥有者 `await manager.close()`。关闭 manager 后不能复用。
-App 还需用自己的页面/设备代次隔离过期回调，避免后台提交和页面关闭竞态。
+每次请求通过方法参数回调异步交付主线程，只返回纯 `RequestID`，不公开设备、operation 或订阅对象。
+取消使用 `manager.cancel(requestID)`。`manager.disconnect { result in ... }` 完成后可以显式连接另一台设备；
+结束所有权时调用 `manager.close { result in ... }`，关闭后不能复用。
+一个 Manager 同时拥有一台设备，多设备使用多个实例。页面退出只解除应用自己的 UI 通知。
 
-每次打印明确传入 Profile。`PrinterImage` 像素创建时复制一次，`PrintJob` 构建后不可变并共享图像存储。
+每次打印明确传入 Profile。准备闭包在后台生成原始像素描述，原生导入复制一次，后续共享只读存储。
 同一设备所有 IO 由 SDK 队列串行执行。数据传输完成不代表物理打印完成；取消不能撤回已发数据。
-连接中断后需显式重连，不自动续打或重放。`PrinterSDK.info()` 返回运行库身份；
+连接中断后需显式重连，不自动续打或重放。`manager.sdkInfo { result in ... }` 返回运行库身份；
 能力的实现标记不等于硬件支持，须同时检查设备支持和证据。
 
 ## 隐私与许可

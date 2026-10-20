@@ -3,7 +3,7 @@ import Foundation
 
 /// Stops notifications only. It never cancels a printer operation.
 // lock protects the cancellation action; captured owners are released outside the lock.
-public final class ObservationSubscription: @unchecked Sendable {
+final class ObservationSubscription: @unchecked Sendable {
     private let lock = NSLock()
     private var action: (@Sendable () -> Void)?
     private let cancelOnDeinit: Bool
@@ -77,7 +77,7 @@ final class LatestDelivery<Value: Sendable>: @unchecked Sendable {
 
 /// A caller handle and independently retained observation state share one immutable result.
 /// Closing releases caller access; callbacks registered beforehand remain owed.
-public final class PrintOperation: Sendable {
+final class PrintOperation: Sendable {
     public let id: UInt64
     private let state: OperationObservation
     private let service: ObservationService

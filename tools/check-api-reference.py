@@ -17,7 +17,13 @@ APPROVED_BASELINES = {
     "android": "8ad69087e4a965f7df4aa56f84b33dc6cfcf340ed3e8395f57155dfe449390a2",
     "apple": "62ccd5c542c02285429d8942b7eb69a68555180ddb3b9d335780e30009f2fd65",
 }
-DEVELOPMENT_BASELINES = {"0.3.0-preview.2-dev": {
+DEVELOPMENT_BASELINES = {"0.3.0-preview.4-dev": {
+    "android": "cc7d3634f25deeca19aeef6a8775eab17f40ede6837967113b386bcc33b9288e",
+    "apple": "e2f8e9b815eda327ea9e573fc014a5964d73b4d834394091ced9968c1765b19b",
+}, "0.3.0-preview.3-dev": {
+    "android": "07ff86b2327a0fc2ba155928f4847d8047eb1b61826bcdb6b7e223e563442fe6",
+    "apple": "7e2a51b45f07800a08a180161ad6bfff71b19bc2fd46dc70d0d124c74a44416c",
+}, "0.3.0-preview.2-dev": {
     "android": "07ff86b2327a0fc2ba155928f4847d8047eb1b61826bcdb6b7e223e563442fe6",
     "apple": "7e2a51b45f07800a08a180161ad6bfff71b19bc2fd46dc70d0d124c74a44416c",
 }, "0.3.0-preview.1-dev": {
@@ -28,6 +34,8 @@ DEVELOPMENT_BASELINES = {"0.3.0-preview.2-dev": {
     "apple": "24046a0889ac83a9d96bac1220867005edbd2ce50684f972f30c691d8429fe42",
 }}
 DEVELOPMENT_IDENTITIES = {
+    "0.3.0-preview.4-dev": {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 2}},
+    "0.3.0-preview.3-dev": {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 2}},
     "0.3.0-preview.2-dev": {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 1}},
     "0.2.0-preview.5-dev": {"native_sdk_version": "0.2.0", "abi": {"version": 2, "revision": 13}},
     "0.3.0-preview.1-dev": {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 1}},
@@ -38,11 +46,16 @@ CANDIDATE_BASELINES = {"0.3.0-preview.1": {
 }, "0.3.0-preview.2": {
     "android": "07ff86b2327a0fc2ba155928f4847d8047eb1b61826bcdb6b7e223e563442fe6",
     "apple": "7e2a51b45f07800a08a180161ad6bfff71b19bc2fd46dc70d0d124c74a44416c",
+}, "0.3.0-preview.4": {
+    "android": "cc7d3634f25deeca19aeef6a8775eab17f40ede6837967113b386bcc33b9288e",
+    "apple": "e2f8e9b815eda327ea9e573fc014a5964d73b4d834394091ced9968c1765b19b",
 }}
 CANDIDATE_IDENTITIES = {"0.3.0-preview.1": {
     "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 1},
 }, "0.3.0-preview.2": {
     "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 1},
+}, "0.3.0-preview.4": {
+    "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 2},
 }}
 CANDIDATE_ANNOTATIONS = {"0.3.0-preview.1": {
     "android": "6dad2100c2fc107c5dc00151547eaa62a8e78fb766ba5ec05d6264c8d6ee7082",
@@ -50,6 +63,9 @@ CANDIDATE_ANNOTATIONS = {"0.3.0-preview.1": {
 }, "0.3.0-preview.2": {
     "android": "52b10f1869e4be989fa4c6c42b7f13f7c825e271c5063695e7b83b5f35d30d1d",
     "apple": "afd03452fa8d2aec34328dc559062b0dad501d2c9d47aba5a70848b06e2ff556",
+}, "0.3.0-preview.4": {
+    "android": "c36ee7f2d200a5fae92d7787db97b28481059ee824a66b6865ff9b85bf8713a4",
+    "apple": "9ceb576aaad1abb327bde8afb83e87d849d7f7d3a5da44e76bcc95325875a649",
 }}
 PUBLISHED_VERSIONS = {"0.2.0-preview." + str(n) for n in (1, 2, 3, 4)}
 DOCUMENTS = {"android": "docs/android-java-api.md", "apple": "docs/ios-swift-api.md"}

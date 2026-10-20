@@ -10,7 +10,7 @@ public struct DiscoveredPrinter: Sendable {
 }
 
 /// Foreground discovery only. A discovered BLE device is not a verified printer.
-public final class BLEScanner: Sendable {
+final class BLEScanner: Sendable {
     private let implementation: BLEScanImplementation
     public init() {
         implementation = BLEScanImplementation(queue: DispatchQueue(label: "PrinterSDK.BLEScanner"),
@@ -33,6 +33,9 @@ public final class BLEScanner: Sendable {
     }
     /// Cancels the active scan, if any. The scanner can be reused after completion.
     public func stop() { implementation.stop() }
+    // Internal resource barrier. Completion runs on the scanner queue after stop/detach,
+    // independently of the client callback waiting on the main queue.
+    func stop(completion: @escaping @Sendable () -> Void) { implementation.stop(completion: completion) }
     deinit { implementation.stop() }
 }
 
@@ -102,7 +105,10 @@ private final class BLEScanImplementation: @unchecked Sendable {
             }
         }
     }
-    func stop() { queue.async { self.finish(.failure(PrinterSDKError(1005))) } }
+    func stop() { stop(completion: {}) }
+    func stop(completion: @escaping @Sendable () -> Void) {
+        queue.async { self.finish(.failure(PrinterSDKError(1005))); completion() }
+    }
     private func finish(_ result: Result<[DiscoveredPrinter], PrinterSDKError>) {
         guard let callback = completion else { return }
         completion = nil; generation &+= 1

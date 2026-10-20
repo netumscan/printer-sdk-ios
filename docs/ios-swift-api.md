@@ -1,13 +1,13 @@
 # iOS Swift API 参考
 
-发布候选版本 **0.3.0-preview.2**；原生 SDK **0.3.0**；C ABI **3/r1**。
+发布候选版本 **0.3.0-preview.4**；原生 SDK **0.3.0**；C ABI **3/r2**。
 
-本页逐项覆盖审定的编译器公共 API 基线，共 **349** 个文档条目。
+本页逐项覆盖审定的编译器公共 API 基线，共 **275** 个文档条目。
 声明、JVM descriptor、常量、枚举和编译器关系均来自基线，说明按稳定文档 ID 维护。
 机器可读的完整基线与说明见 [api-reference.json](api-reference.json)；运行
 `python3 tools/check-api-reference.py` 可检查覆盖范围、审定 SHA-256 和本页字节一致性。
 
-基线 SHA-256：`7e2a51b45f07800a08a180161ad6bfff71b19bc2fd46dc70d0d124c74a44416c`
+基线 SHA-256：`e2f8e9b815eda327ea9e573fc014a5964d73b4d834394091ced9968c1765b19b`
 
 运行约束与错误处理见 [API 与生命周期](api-lifecycle.md) 和 [错误码与排障](errors-troubleshooting.md)。
 本页是未发布的发布候选契约，不代表发布制品或公开历史证明。硬件验收仍暂缓，`hardware_verified=false`。
@@ -16,49 +16,43 @@
 
 - [BLECreditFlowControl](#api-cf29222de3a9439ea9d9)
 - [BLEOptions](#api-5407994e1f7a0684ecd6)
-- [BLEScanner](#api-b3a1ce59859e4cf66609)
-- [ConnectionState](#api-7b987515d7ad703321ec)
+- [CancellationContext](#api-1bc8aaf9370f29dafae0)
+- [CompletionLevel](#api-7027c38eacd1e136b879)
 - [CpclProfile](#api-d94c01c25a5ac00d3af5)
 - [CutMode](#api-ca87677d19e3423fb23c)
-- [DeviceActiveOperation](#api-a4469ccf35ccf99bbc8f)
-- [DeviceStateSnapshot](#api-8ca6a77eedc34c565166)
-- [DeviceWorkState](#api-54f3a6b00a3988e4c18e)
-- [DiagnosticSource](#api-2e47e1cecb9f6ee6289d)
 - [DiscoveredPrinter](#api-e7eba043862754865338)
-- [ErrorDiagnostic](#api-33ee6f34f5b5b231c733)
 - [FeatureSupport](#api-63244971bb8665f0438c)
 - [FinishScope](#api-8da32930540a97e6bfd9)
-- [HardwareState](#api-712e0c363892c35925d7)
-- [HardwareStatusResult](#api-806056f7885dc5612709)
 - [ImageAlgorithm](#api-41361c67b37b815a38ae)
 - [LabelJobOptions](#api-9cd007436b5a242686f9)
 - [M90Profile](#api-c09da0bc38ed43e7aef2)
+- [ManagerOutcome](#api-625d7c79302095211bcb)
+- [ManagerResult](#api-d5c711f55a02b7703b81)
 - [MediaMode](#api-e9f6609ce460a51cc89f)
+- [MediaPersistencePolicy](#api-443778f8722036fd1c08)
 - [MediaRequirement](#api-623f02309548c44d0ebb)
+- [MediaSettings](#api-a2a66f93bc7ef29553ce)
 - [MediaVerificationPolicy](#api-afcd3a74fc08e909f85d)
-- [MobilePrinter](#api-ac14c812144bc8d503ff)
-- [ObservationSubscription](#api-b2adb08956dca46c7ae5)
-- [OperationResult](#api-afec0bb5086d128fee42)
-- [OperationSnapshot](#api-57bb815c8787c72b8ed3)
 - [PixelFormat](#api-145004af19a837676c99)
-- [PrintJob](#api-853bae839e6f8b53cd97)
-- [PrintOperation](#api-fcb644f7b0eb6c8a6489)
+- [Pixels](#api-6bb193bc6a8b988482be)
+- [PreparedPrint](#api-1c60054e629e6db79dd6)
+- [PrintElement](#api-bc94fceab7b905f1b496)
+- [PrintOptions](#api-7ef50076423442cb8f07)
 - [PrinterCapabilities](#api-51947abf7e628a2d3bc3)
 - [PrinterConstraint](#api-1f9f816f9d0db63d9e95)
 - [PrinterFeature](#api-67c88d53ad46bc6679a5)
 - [PrinterGeometry](#api-b511b313f54808d516b6)
-- [PrinterImage](#api-ed1435ddffbdea0f0ae1)
 - [PrinterManager](#api-1d5ad0ccf40ef0036743)
 - [PrinterProtocol](#api-7c7a9dd0ee08114f96bd)
-- [PrinterSDK](#api-1d012fc82f6300f83d19)
 - [PrinterSDKError](#api-7eade5ddc7d13cb74d9a)
 - [ReceiptFinishOptions](#api-7a656acf1cbdc7b0f7ad)
 - [ReceiptJobOptions](#api-082376dfdfb0bb2ec7b4)
 - [ReceiptProfile](#api-8a4489e38f48eaabb599)
-- [ResourceSnapshot](#api-ef876e2ccd4fa79506c8)
+- [RequestID](#api-98f79d03f589f3f1383b)
 - [SDKInfo](#api-313c383cb33723929d18)
 - [ScalarConstraint](#api-5c2f7f6243349bf78f99)
 - [StatusQueryConfiguration](#api-4b76054d7c5874efb333)
+- [StatusResult](#api-498d0aa8573deb1c5df3)
 
 公共模块为 `PrinterSDK`，C 桥接模块为 `CPrinterSDK`。
 本基线使用 iOS 15 arm64；符号附带的 Foundation 可用性不表示其他平台已完成分发或验收。
@@ -164,7 +158,7 @@ init(dataOut: UUID, dataFC: UUID)
 struct BLEOptions
 ```
 
-应用显式配置与目标固件一致的服务和特征；这些值不自动识别型号，也不构成硬件验证。所有字段在初始化时保存，通过 `MobilePrinter` 使用。当前前台 BLE 传输不提供平台原生句柄，权限和前后台策略由应用负责。
+应用显式配置与目标固件一致的服务和特征；这些值不自动识别型号，也不构成硬件验证。所有字段在初始化时保存，通过 `PrinterManager.connect` 使用。当前前台 BLE 传输不提供平台原生句柄，权限和前后台策略由应用负责。
 
 文档 ID：`apple:symbol:s:10PrinterSDK10BLEOptionsV`
 
@@ -305,120 +299,97 @@ let writeCharacteristic: UUID
 | --- | --- |
 | UUID | `s:10Foundation4UUIDV` |
 
-<a id="api-b3a1ce59859e4cf66609"></a>
+<a id="api-1bc8aaf9370f29dafae0"></a>
 
-## BLEScanner
+## CancellationContext
 
-<a id="api-7935f69ef4752ec50e2b"></a>
+<a id="api-1ead2779d2b0900877ae"></a>
 
-### BLEScanner
+### CancellationContext
 
-前台 BLE 设备发现器。
+准备阶段的协作取消上下文。
 
 ```swift
-final class BLEScanner
+final class CancellationContext
 ```
 
-扫描通过异步完成回调返回，不阻塞调用线程；一次仅允许一个扫描。应用持有扫描器直到完成，可用 `stop` 取消；完成后可再次扫描。应用负责用途说明、权限与前后台策略。发现不连接设备，不判断协议/型号，也不验证打印机硬件；没有原生外设句柄暴露。 Swift 跨隔离访问采用 Sendable 契约，内部同步与原生存储生命周期保护保持；可变 App 状态须自行同步，阻塞 IO 仍应在后台执行。
+应用在耗时像素准备中检查取消并尽快返回；该对象不持有可操作的native资源。请求取消或清理后，迟到的准备结果不能重新提交打印。
 
-文档 ID：`apple:symbol:s:10PrinterSDK10BLEScannerC`
+文档 ID：`apple:symbol:s:10PrinterSDK19CancellationContextC`
 
 符号种类：`swift.class`；访问级别：`public`。
 
-<a id="api-d0a645c918661744d908"></a>
+<a id="api-232b8bbccdba27e88d2d"></a>
 
-### BLEScanner.init()
+### CancellationContext.checkCancellation()
 
-创建一个可复用的前台扫描器。
-
-```swift
-init()
-```
-
-无参数，不抛出异常；创建对象不立即扫描或连接设备。调用 `scan` 才启动一个有限扫描窗口。应用应保留此对象，结束页面或进入后台时显式 `stop`。
-
-文档 ID：`apple:symbol:s:10PrinterSDK10BLEScannerCACycfc`
-
-符号种类：`swift.init`；访问级别：`public`。
-
-<a id="api-1ac780fde7fe9f8c6153"></a>
-
-### BLEScanner.scan(seconds:service:completion:)
-
-异步扫描一个有限窗口并在主队列交付一次结果。
+在准备函数中检查并抛出取消错误。
 
 ```swift
-func scan(seconds: TimeInterval = 10, service: UUID? = nil, completion: @escaping @Sendable (Result<[DiscoveredPrinter], PrinterSDKError>) -> Void)
+func checkCancellation() throws
 ```
 
-`seconds` 默认 `10`，单位秒，必须有限且在 `(0, 60]` 内，窗口包含蓝牙初始化等待；无效值通过主队列回调 `.failure(PrinterSDKError(1001))`，方法不抛出。`service` 默认 `nil`，表示不按单一服务过滤；传 UUID 时要求广播匹配，可能排除没有在广播列出服务的设备。`completion` 无默认值；每次请求只调用一次，且始终派发到主队列，可在回调中再次启动扫描。已有活动扫描时新请求以 1002 失败，不中断原扫描。
+请求已取消时抛出稳定取消错误，应用应中止准备；Manager仍独立防止迟到准备结果重新准入。
 
-正常窗口结束返回 `.success`，可以是空数组；按 UUID 合并后保留首次发现顺序，名称、服务与 RSSI 更新。停止以 1005 失败；蓝牙关闭、权限不足或扫描期间状态失效以 1002 失败，不支持蓝牙以 1004 失败；蓝牙初始化未能在窗口内就绪以 2001 失败。失败和取消不返回部分结果。SDK 不自动开启蓝牙、配对、重试、连接或选择设备。 回调声明为 `@Sendable`，捕获的跨线程值须满足 Sendable 或适当隔离；UI 更新显式切回 MainActor。默认回调队列仍为主队列。
-
-文档 ID：`apple:symbol:s:10PrinterSDK10BLEScannerC4scan7seconds7service10completionySd_10Foundation4UUIDVSgys6ResultOySayAA010DiscoveredA0VGAA0A8SDKErrorVGYbctF`
+文档 ID：`apple:symbol:s:10PrinterSDK19CancellationContextC05checkC0yyKF`
 
 符号种类：`swift.method`；访问级别：`public`。
+
+<a id="api-92363ea759a1c58b22f1"></a>
+
+### CancellationContext.isCancelled
+
+检查准备是否已被取消。
+
+```swift
+var isCancelled: Bool { get }
+```
+
+应用在耗时准备的分块边界检查该值并尽早结束；仅用于协作取消，不提供native设备操作。
+
+文档 ID：`apple:symbol:s:10PrinterSDK19CancellationContextC11isCancelledSbvp`
+
+符号种类：`swift.property`；访问级别：`public`。
 
 声明引用的编译器标识：
 
 | 名称 | precise identifier |
 | --- | --- |
-| DiscoveredPrinter | `s:10PrinterSDK010DiscoveredA0V` |
-| PrinterSDKError | `s:10PrinterSDK0A8SDKErrorV` |
-| Result | `s:s6ResultO` |
-| TimeInterval | `c:@T@NSTimeInterval` |
-| UUID | `s:10Foundation4UUIDV` |
-| Void | `s:s4Voida` |
+| Bool | `s:Sb` |
 
-<a id="api-93fd3659dde18045d8a7"></a>
+<a id="api-7027c38eacd1e136b879"></a>
 
-### BLEScanner.stop()
+## CompletionLevel
 
-请求取消当前扫描并清理本轮扫描资源。
+<a id="api-b43551f1f08033ae6071"></a>
 
-```swift
-func stop()
-```
+### CompletionLevel
 
-方法异步安排停止，不等待回调，不抛出异常；活动扫描以 1005 在主队列完成，空闲时为空操作。每轮只交付一次结果，旧回调和截止任务不会污染新一轮。回调完成后扫描器可以再次使用；析构也会请求停止。停止扫描不关闭已经创建的 `MobilePrinter` 连接。
-
-文档 ID：`apple:symbol:s:10PrinterSDK10BLEScannerC4stopyyF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-<a id="api-7b987515d7ad703321ec"></a>
-
-## ConnectionState
-
-<a id="api-08d8e39489c4e34135e1"></a>
-
-### ConnectionState
-
-SDK 本地观察到的连接生命周期状态。
+打印完成证据级别。
 
 ```swift
-enum ConnectionState
+enum CompletionLevel
 ```
 
-由 `MobilePrinter.connectionState` 返回，仅是缓存观察，不探测蓝牙链路或打印机机械状态。错误由调用/操作结果表示，不增加一个稳定的“失败”连接状态。
+none表示没有打印完成证据，dataSent表示传输完成，deviceConfirmed仅在协议提供明确设备确认时使用。
 
-文档 ID：`apple:symbol:s:10PrinterSDK15ConnectionStateO`
+文档 ID：`apple:symbol:s:10PrinterSDK15CompletionLevelO`
 
 符号种类：`swift.enum`；访问级别：`public`。
 
-<a id="api-c07119716f05d83cc201"></a>
+<a id="api-17a429bc3fc72efaac8f"></a>
 
-### ConnectionState.!=(_:_:)
+### CompletionLevel.!=(_:_:)
 
-比较两个 ConnectionState 值是否不相等。
+比较两个只读值是否不同。
 
 ```swift
 static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool
 ```
 
-Swift 标准库 `Equatable` 扩展为此类型提供的合成公开成员，不是独立 SDK 实现。参数 `lhs`、`rhs` 为两个值；枚举项不同时返回 true，否则 false。不抛出错误、不执行 IO，也不比较设备状态或诊断文案。
+由编译器依据类型的Equatable语义合成；比较不访问设备，不创建打印请求。
 
-文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK15ConnectionStateO`
+文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK15CompletionLevelO`
 
 符号种类：`swift.func.op`；访问级别：`public`。
 
@@ -436,83 +407,51 @@ Swift 标准库 `Equatable` 扩展为此类型提供的合成公开成员，不�
 | --- | --- |
 | Bool | `s:Sb` |
 
-<a id="api-54c2af3ad14d7a325f43"></a>
+<a id="api-405f6927c286f89ab363"></a>
 
-### ConnectionState.connected
+### CompletionLevel.dataSent
 
-SDK 已记录通信路径建立成功。
+仅数据发送完成。
 
 ```swift
-case connected
+case dataSent
 ```
 
-不是即时存活探测或打印机就绪证明；链路断开在被 IO 察觉之前可能仍保持此值。任务是否成功和纸面是否完成必须分别判断。
+该常量的精确名称、原始值或条件位属于本版本契约；完成证据不得被解释为强于实际协议可证明的级别。
 
-文档 ID：`apple:symbol:s:10PrinterSDK15ConnectionStateO9connectedyA2CmF`
+文档 ID：`apple:symbol:s:10PrinterSDK15CompletionLevelO8dataSentyA2CmF`
 
 符号种类：`swift.enum.case`；访问级别：`public`。
 
-<a id="api-08c606124ce8c59a1805"></a>
+<a id="api-6b3a08b5989ebfa2d674"></a>
 
-### ConnectionState.connecting
+### CompletionLevel.deviceConfirmed
 
-SDK 正在建立通信路径。
+设备明确确认完成。
 
 ```swift
-case connecting
+case deviceConfirmed
 ```
 
-是连接生命周期的瞬时本地状态；连接完成或失败由 `connect` 的结果表示。不要在 UI 线程等待，不根据此状态重放任务。
+该常量的精确名称、原始值或条件位属于本版本契约；完成证据不得被解释为强于实际协议可证明的级别。
 
-文档 ID：`apple:symbol:s:10PrinterSDK15ConnectionStateO10connectingyA2CmF`
+文档 ID：`apple:symbol:s:10PrinterSDK15CompletionLevelO15deviceConfirmedyA2CmF`
 
 符号种类：`swift.enum.case`；访问级别：`public`。
 
-<a id="api-a782875819b5b839434c"></a>
+<a id="api-a9f99ca50aa642e6ad0c"></a>
 
-### ConnectionState.disconnected
+### CompletionLevel.hash(into:)
 
-SDK 当前记录为未连接。
-
-```swift
-case disconnected
-```
-
-尚未连接、显式断开、关闭，或已被 IO 发现连接丢失后的本地状态。应用需显式连接，SDK 不会自动续打。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15ConnectionStateO12disconnectedyA2CmF`
-
-符号种类：`swift.enum.case`；访问级别：`public`。
-
-<a id="api-d2d5b92fc8cfecf69b5d"></a>
-
-### ConnectionState.disconnecting
-
-SDK 正在中断 IO 并完成断开屏障。
-
-```swift
-case disconnecting
-```
-
-断开尚未完成，正在停止接纳并等待活动工作退出。仅该状态不能证明系统蓝牙资源已经释放；等 `disconnect` 或 `close` 返回。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15ConnectionStateO13disconnectingyA2CmF`
-
-符号种类：`swift.enum.case`；访问级别：`public`。
-
-<a id="api-ae6bf1c1479e246c63fb"></a>
-
-### ConnectionState.hash(into:)
-
-把 ConnectionState 的相等性相关值混入 Hasher。
+将只读值纳入哈希器。
 
 ```swift
 func hash(into hasher: inout Hasher)
 ```
 
-Swift 标准库为原始值枚举提供的合成成员，不是 SDK 实现。`hasher` 为调用方按 `inout` 传入的 `Hasher`，方法更新其状态，没有返回值且不抛出错误。用于 `Hashable` 集合语义，哈希结果不是跨进程稳定序列化格式，不涉及设备 IO。
+由类型的Hashable语义合成，供集合使用；哈希值不属于持久化协议或native请求标识。
 
-文档 ID：`apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK15ConnectionStateO`
+文档 ID：`apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK15CompletionLevelO`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -536,19 +475,19 @@ Swift 标准库为原始值枚举提供的合成成员，不是 SDK 实现。`ha
 | --- | --- |
 | Hasher | `s:s6HasherV` |
 
-<a id="api-1f2a4d1f92174b905f4f"></a>
+<a id="api-ef6d11e5397b2497f5d4"></a>
 
-### ConnectionState.hashValue
+### CompletionLevel.hashValue
 
-获取 ConnectionState 的进程内哈希值。
+读取只读值的进程内哈希。
 
 ```swift
 var hashValue: Int { get }
 ```
 
-Swift 标准库为原始值枚举提供的合成 `Hashable` 成员，不是 SDK 稳定编号。用于集合/字典查找；不要持久化、传输、作为 API 原始值或在不同进程/版本间比较。需要契约数值时使用枚举原始值语义。
+由类型的Hashable语义合成；哈希不保证跨进程稳定，不用于设备身份或持久化请求恢复。
 
-文档 ID：`apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK15ConnectionStateO`
+文档 ID：`apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK15CompletionLevelO`
 
 符号种类：`swift.property`；访问级别：`public`。
 
@@ -566,19 +505,19 @@ Swift 标准库为原始值枚举提供的合成 `Hashable` 成员，不是 SDK 
 | --- | --- |
 | Int | `s:Si` |
 
-<a id="api-de083f3b2068cb277091"></a>
+<a id="api-0329693e289810ecd80e"></a>
 
-### ConnectionState.init(rawValue:)
+### CompletionLevel.init(rawValue:)
 
-按已声明raw值构造枚举。
+构造CompletionLevel只读数据。
 
 ```swift
 init?(rawValue: UInt32)
 ```
 
-匹配本版枚举值时返回对应项，未知数值返回nil；不执行IO、不探测设备，也不自动接受未来枚举。精确raw值见本页编译器枚举表。
+none表示没有打印完成证据，dataSent表示传输完成，deviceConfirmed仅在协议提供明确设备确认时使用。
 
-文档 ID：`apple:symbol:s:10PrinterSDK15ConnectionStateO8rawValueACSgs6UInt32V_tcfc`
+文档 ID：`apple:symbol:s:10PrinterSDK15CompletionLevelO8rawValueACSgs6UInt32V_tcfc`
 
 符号种类：`swift.init`；访问级别：`public`。
 
@@ -587,6 +526,22 @@ init?(rawValue: UInt32)
 | 名称 | precise identifier |
 | --- | --- |
 | UInt32 | `s:s6UInt32V` |
+
+<a id="api-823f156da66c4aac3a9b"></a>
+
+### CompletionLevel.none
+
+没有完成证据。
+
+```swift
+case none
+```
+
+该常量的精确名称、原始值或条件位属于本版本契约；完成证据不得被解释为强于实际协议可证明的级别。
+
+文档 ID：`apple:symbol:s:10PrinterSDK15CompletionLevelO4noneyA2CmF`
+
+符号种类：`swift.enum.case`；访问级别：`public`。
 
 <a id="api-d94c01c25a5ac00d3af5"></a>
 
@@ -640,7 +595,7 @@ let dpi: UInt32
 let form: Bool
 ```
 
-true 请求下一标签起点结束，false 请求内容结束；没有隐式默认值，初始化时必填。`submitGray8(form: nil)` 取此值，显式传 true/false 只覆盖当前作业。它不设置纸张类型、不做传感器校准，也不影响原始字节发送。
+true 表示下一标签起点结束，false 表示内容结束；初始化时必填。Manager 不自动继承此保留字段；本次 PreparedPrint 的 LabelJobOptions 显式提供结束策略。它不设置介质类型、不校准传感器，也不影响 Raw。
 
 文档 ID：`apple:symbol:s:10PrinterSDK11CpclProfileV4formSbvp`
 
@@ -729,7 +684,7 @@ let widthDots: UInt32
 let xOffsetDots: UInt32
 ```
 
-单位为点，构造参数默认 0，须小于配置打印宽度。`submitGray8(originXDots: nil)` 使用此值；每次提交独立保存原点，显式覆盖不会修改 profile。Raw 原样发送，不应用此偏移；SDK 不自动推断居中装纸位置。
+单位为点，构造参数默认 0，须小于配置打印宽度。Manager 不自动继承此保留字段；本次 PreparedPrint 的 LabelJobOptions 显式提供原点。Raw 原样发送，不应用此偏移；SDK 不推断居中装纸位置。
 
 文档 ID：`apple:symbol:s:10PrinterSDK11CpclProfileV11xOffsetDotss6UInt32Vvp`
 
@@ -755,7 +710,7 @@ let xOffsetDots: UInt32
 enum CutMode
 ```
 
-传给 `submitReceiptGray8(cut:)`；当前标准 ESC/POS 后端未实现切纸，非 `.none` 请求会在首次 IO 前拒绝，不会静默省略。枚举项是契约选项，不是设备具有切刀的证据。
+用于 ReceiptFinishOptions。当前标准 ESC/POS 后端未实现结构化切纸，非 none 请求在首次 IO 前拒绝，不会静默省略。枚举项是契约选项，不是设备具有切刀的证据。
 
 文档 ID：`apple:symbol:s:10PrinterSDK7CutModeO`
 
@@ -905,7 +860,7 @@ init?(rawValue: UInt32)
 case none
 ```
 
-为 `submitReceiptGray8` 的默认值；仍可根据 `trailingBlankDots` 与 `finishScope` 发送尾部留白。它不关闭设备，也不承诺自动撕纸位置。
+不请求切纸；PreparedPrint 的 ReceiptFinishOptions 仍可显式提供尾部留白及结束范围。该选项不关闭设备，也不承诺自动撕纸位置。
 
 文档 ID：`apple:symbol:s:10PrinterSDK7CutModeO4noneyA2CmF`
 
@@ -927,790 +882,6 @@ case partial
 
 符号种类：`swift.enum.case`；访问级别：`public`。
 
-<a id="api-a4469ccf35ccf99bbc8f"></a>
-
-## DeviceActiveOperation
-
-<a id="api-d084cbcce8288d7cadad"></a>
-
-### DeviceActiveOperation
-
-不可变的活动操作信息。
-
-```swift
-struct DeviceActiveOperation
-```
-
-仅设备快照有活动业务操作时存在；包含原生 ID、kind、state，不保存操作句柄或控制权。
-
-文档 ID：`apple:symbol:s:10PrinterSDK21DeviceActiveOperationV`
-
-符号种类：`swift.struct`；访问级别：`public`。
-
-<a id="api-47fdcd3632e1b417608a"></a>
-
-### DeviceActiveOperation.!=(_:_:)
-
-编译器提供的值不等比较。
-
-```swift
-static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool
-```
-
-比较两个同类型快照或状态的值；只反映已采样值差异，不刷新设备状态或执行打印机 IO。
-
-文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK21DeviceActiveOperationV`
-
-符号种类：`swift.func.op`；访问级别：`public`。
-
-这是编译器为当前类型带入的协议扩展／合成公共成员。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"Swift","typeKind":"swift.protocol"}
-```
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Bool | `s:Sb` |
-
-<a id="api-2673d315e9c65be94145"></a>
-
-### DeviceActiveOperation.id
-
-活动操作的原生 ID。
-
-```swift
-let id: UInt64
-```
-
-来自同一设备执行器，与 PrintOperation 快照的 id 对应；不能作为跨设备身份或兼容 task ID。
-
-文档 ID：`apple:symbol:s:10PrinterSDK21DeviceActiveOperationV2ids6UInt64Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
-
-<a id="api-8cfe6170c7cea9038bb3"></a>
-
-### DeviceActiveOperation.kind
-
-活动操作种类。
-
-```swift
-let kind: UInt32
-```
-
-沿用原生 PSDK_OP_* 值；0 表示没有公共种类的内部操作，不据此推断硬件打印状态。
-
-文档 ID：`apple:symbol:s:10PrinterSDK21DeviceActiveOperationV4kinds6UInt32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-76fc3921f5d35cdbddcb"></a>
-
-### DeviceActiveOperation.state
-
-活动操作状态。
-
-```swift
-let state: UInt32
-```
-
-沿用 operation 状态值，描述 SDK 执行阶段；发送完成不表示纸面打印完成。
-
-文档 ID：`apple:symbol:s:10PrinterSDK21DeviceActiveOperationV5states6UInt32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-8ca6a77eedc34c565166"></a>
-
-## DeviceStateSnapshot
-
-<a id="api-7a36f4147385d13e0a48"></a>
-
-### DeviceStateSnapshot
-
-不可变的设备状态快照。
-
-```swift
-struct DeviceStateSnapshot
-```
-
-读取不调用传输回调、不发送打印机 IO、不入队也不等待打印完成。快照只用于展示和诊断，不作为提交前置条件；不得与设备销毁并发访问。 activeOperation 与硬件采样时间采用可选值表示不存在或未知。
-
-文档 ID：`apple:symbol:s:10PrinterSDK19DeviceStateSnapshotV`
-
-符号种类：`swift.struct`；访问级别：`public`。
-
-<a id="api-b955293ae582f638118c"></a>
-
-### DeviceStateSnapshot.!=(_:_:)
-
-编译器提供的值不等比较。
-
-```swift
-static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool
-```
-
-比较两个同类型快照或状态的值；只反映已采样值差异，不刷新设备状态或执行打印机 IO。
-
-文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK19DeviceStateSnapshotV`
-
-符号种类：`swift.func.op`；访问级别：`public`。
-
-这是编译器为当前类型带入的协议扩展／合成公共成员。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"Swift","typeKind":"swift.protocol"}
-```
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Bool | `s:Sb` |
-
-<a id="api-a854e34e4f2cb44537b7"></a>
-
-### DeviceStateSnapshot.activeOperation
-
-可选的活动操作信息。
-
-```swift
-let activeOperation: DeviceActiveOperation?
-```
-
-无活动业务操作时为 nil；非 nil 时包含原生 operation ID、kind 和 state，不是兼容 task ID。
-
-文档 ID：`apple:symbol:s:10PrinterSDK19DeviceStateSnapshotV15activeOperationAA0c6ActiveG0VSgvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| DeviceActiveOperation | `s:10PrinterSDK21DeviceActiveOperationV` |
-
-<a id="api-313849eb4c10c183ec35"></a>
-
-### DeviceStateSnapshot.connectionGeneration
-
-成功新连接的代数。
-
-```swift
-let connectionGeneration: UInt64
-```
-
-初始为 0，每次成功建立新的连接递增；失败连接、断开以及已连接时重复 connect 不递增。
-
-文档 ID：`apple:symbol:s:10PrinterSDK19DeviceStateSnapshotV20connectionGenerations6UInt64Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
-
-<a id="api-af8b665ab8b548d003c4"></a>
-
-### DeviceStateSnapshot.connectionState
-
-SDK 本地连接状态。
-
-```swift
-let connectionState: ConnectionState
-```
-
-使用既有四态值；CONNECTED 不证明实时链路存活、设备就绪或纸面完成。
-
-文档 ID：`apple:symbol:s:10PrinterSDK19DeviceStateSnapshotV010connectionD0AA010ConnectionD0Ovp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| ConnectionState | `s:10PrinterSDK15ConnectionStateO` |
-
-<a id="api-b72c3e7ed667a0834f4b"></a>
-
-### DeviceStateSnapshot.hardwareActiveConditions
-
-已知且成立的硬件条件位集合。
-
-```swift
-let hardwareActiveConditions: UInt32
-```
-
-当前固定为 0；仅在对应 known 条件位有效时才可解释，当前没有有效硬件采样。
-
-文档 ID：`apple:symbol:s:10PrinterSDK19DeviceStateSnapshotV24hardwareActiveConditionss6UInt32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-967c4402a94902378ec6"></a>
-
-### DeviceStateSnapshot.hardwareKnownConditions
-
-有有效硬件证据的条件位集合。
-
-```swift
-let hardwareKnownConditions: UInt32
-```
-
-当前固定为 0，表示没有已知条件；未知不能推断为没有缺纸、开盖或故障。
-
-文档 ID：`apple:symbol:s:10PrinterSDK19DeviceStateSnapshotV23hardwareKnownConditionss6UInt32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-58bd2a5619cf3ca33686"></a>
-
-### DeviceStateSnapshot.hardwareSampledMonotonicMilliseconds
-
-可选的硬件采样单调时钟毫秒。
-
-```swift
-let hardwareSampledMonotonicMilliseconds: UInt64?
-```
-
-当前固定为 nil，表示没有有效硬件采样；未来非 nil 时也不是墙上时钟或日历时间。
-
-文档 ID：`apple:symbol:s:10PrinterSDK19DeviceStateSnapshotV36hardwareSampledMonotonicMillisecondss6UInt64VSgvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
-
-<a id="api-d41db8d97ca57d6264b8"></a>
-
-### DeviceStateSnapshot.hardwareState
-
-打印机实际硬件状态。
-
-```swift
-let hardwareState: HardwareState
-```
-
-当前标准后端固定返回 UNKNOWN=0；不得把队列为空或已连接显示为硬件就绪。
-
-文档 ID：`apple:symbol:s:10PrinterSDK19DeviceStateSnapshotV08hardwareD0AA08HardwareD0Ovp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| HardwareState | `s:10PrinterSDK13HardwareStateO` |
-
-<a id="api-a96a5cb9643a94cb778c"></a>
-
-### DeviceStateSnapshot.queuedCount
-
-等待执行的业务操作数。
-
-```swift
-let queuedCount: UInt32
-```
-
-不包含活动操作或内部连接命令；取消请求尚未完成时可能仍计入，排队取消成功返回后已经移出；读取后数值可立即改变。
-
-文档 ID：`apple:symbol:s:10PrinterSDK19DeviceStateSnapshotV11queuedCounts6UInt32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-34afc3901a6552dfed2f"></a>
-
-### DeviceStateSnapshot.workState
-
-SDK 工作阶段。
-
-```swift
-let workState: DeviceWorkState
-```
-
-IDLE=0、QUEUED=1、PREPARING=2、SENDING=3；只反映 SDK 队列与执行器，不表示硬件正在打印。
-
-文档 ID：`apple:symbol:s:10PrinterSDK19DeviceStateSnapshotV04workD0AA0c4WorkD0Ovp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| DeviceWorkState | `s:10PrinterSDK15DeviceWorkStateO` |
-
-<a id="api-54f3a6b00a3988e4c18e"></a>
-
-## DeviceWorkState
-
-<a id="api-777c72318715e1e6fdf0"></a>
-
-### DeviceWorkState
-
-SDK 本地工作状态枚举。
-
-```swift
-enum DeviceWorkState
-```
-
-UInt32 raw 值固定为 idle=0、queued=1、preparing=2、sending=3；不能解释为硬件物理打印状态。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15DeviceWorkStateO`
-
-符号种类：`swift.enum`；访问级别：`public`。
-
-<a id="api-4f6f9484dc4dc82743e8"></a>
-
-### DeviceWorkState.!=(_:_:)
-
-编译器提供的值不等比较。
-
-```swift
-static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool
-```
-
-比较两个同类型快照或状态的值；只反映已采样值差异，不刷新设备状态或执行打印机 IO。
-
-文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK15DeviceWorkStateO`
-
-符号种类：`swift.func.op`；访问级别：`public`。
-
-这是编译器为当前类型带入的协议扩展／合成公共成员。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"Swift","typeKind":"swift.protocol"}
-```
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Bool | `s:Sb` |
-
-<a id="api-983c9989af02431e2b97"></a>
-
-### DeviceWorkState.hash(into:)
-
-编译器提供的枚举哈希计算。
-
-```swift
-func hash(into hasher: inout Hasher)
-```
-
-由 Hashable 协议合成，仅向当前进程 hasher 添加值，不触发状态查询或打印机 IO。
-
-文档 ID：`apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK15DeviceWorkStateO`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-这是编译器为当前类型带入的协议扩展／合成公共成员。
-
-泛型约束（保留基线原值）：
-
-```json
-{"constraints":[{"kind":"conformance","lhs":"Self","rhs":"Hashable","rhsPrecise":"s:SH"},{"kind":"conformance","lhs":"Self.RawValue","rhs":"Hashable","rhsPrecise":"s:SH"}]}
-```
-
-扩展来源（保留基线原值）：
-
-```json
-{"constraints":[{"kind":"conformance","lhs":"Self","rhs":"Hashable","rhsPrecise":"s:SH"},{"kind":"conformance","lhs":"Self.RawValue","rhs":"Hashable","rhsPrecise":"s:SH"}],"extendedModule":"Swift","typeKind":"swift.protocol"}
-```
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Hasher | `s:s6HasherV` |
-
-<a id="api-e747e90291ad41f45f2c"></a>
-
-### DeviceWorkState.hashValue
-
-编译器提供的枚举哈希值。
-
-```swift
-var hashValue: Int { get }
-```
-
-仅用于当前进程集合操作；不稳定，不能代替 raw 值持久化或作为设备状态协议。
-
-文档 ID：`apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK15DeviceWorkStateO`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-这是编译器为当前类型带入的协议扩展／合成公共成员。
-
-扩展来源（保留基线原值）：
-
-```json
-{"constraints":[{"kind":"conformance","lhs":"Self","rhs":"Hashable","rhsPrecise":"s:SH"},{"kind":"conformance","lhs":"Self.RawValue","rhs":"Hashable","rhsPrecise":"s:SH"}],"extendedModule":"Swift","typeKind":"swift.protocol"}
-```
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Int | `s:Si` |
-
-<a id="api-acafcf7458171d599cac"></a>
-
-### DeviceWorkState.idle
-
-SDK IDLE 工作状态枚举项。
-
-```swift
-case idle
-```
-
-UInt32 raw 值为 0；没有活动或等待的 SDK 业务操作，不证明打印机已停止出纸。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15DeviceWorkStateO4idleyA2CmF`
-
-符号种类：`swift.enum.case`；访问级别：`public`。
-
-<a id="api-47d71661356fba0da958"></a>
-
-### DeviceWorkState.init(rawValue:)
-
-按已声明raw值构造枚举。
-
-```swift
-init?(rawValue: UInt32)
-```
-
-匹配本版枚举值时返回对应项，未知数值返回nil；不执行IO、不探测设备，也不自动接受未来枚举。精确raw值见本页编译器枚举表。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15DeviceWorkStateO8rawValueACSgs6UInt32V_tcfc`
-
-符号种类：`swift.init`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-2074c3f9c34c348a10cb"></a>
-
-### DeviceWorkState.preparing
-
-SDK PREPARING 工作状态枚举项。
-
-```swift
-case preparing
-```
-
-UInt32 raw 值为 2；正在准备图像或执行发送前处理，不表示实际出纸。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15DeviceWorkStateO9preparingyA2CmF`
-
-符号种类：`swift.enum.case`；访问级别：`public`。
-
-<a id="api-46e2a1461cb7acddbad9"></a>
-
-### DeviceWorkState.queued
-
-SDK QUEUED 工作状态枚举项。
-
-```swift
-case queued
-```
-
-UInt32 raw 值为 1；有等待操作，不能作为提交前置条件。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15DeviceWorkStateO6queuedyA2CmF`
-
-符号种类：`swift.enum.case`；访问级别：`public`。
-
-<a id="api-f9629408dc9e1e4b0649"></a>
-
-### DeviceWorkState.sending
-
-SDK SENDING 工作状态枚举项。
-
-```swift
-case sending
-```
-
-UInt32 raw 值为 3；正在发送或等待流控，实际硬件状态仍未知。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15DeviceWorkStateO7sendingyA2CmF`
-
-符号种类：`swift.enum.case`；访问级别：`public`。
-
-<a id="api-2e47e1cecb9f6ee6289d"></a>
-
-## DiagnosticSource
-
-<a id="api-1a9599a0532af244d73f"></a>
-
-### DiagnosticSource
-
-诊断来源分类。
-
-```swift
-enum DiagnosticSource
-```
-
-不可变 UInt32 原始值枚举；分类不表示经过验证的硬件支持，未知原始值不能猜测映射。
-
-文档 ID：`apple:symbol:s:10PrinterSDK16DiagnosticSourceO`
-
-符号种类：`swift.enum`；访问级别：`public`。
-
-<a id="api-e5af391fa098f9b026ab"></a>
-
-### DiagnosticSource.!=(_:_:)
-
-按值比较两个 DiagnosticSource 是否不同。
-
-```swift
-static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool
-```
-
-Swift Equatable 提供的比较，不执行 IO、不刷新状态。比较本次值或枚举，不能把相等的快照当作设备仍在线、硬件正常或纸面打印完成的证明。
-
-文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK16DiagnosticSourceO`
-
-符号种类：`swift.func.op`；访问级别：`public`。
-
-这是编译器为当前类型带入的协议扩展／合成公共成员。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"Swift","typeKind":"swift.protocol"}
-```
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Bool | `s:Sb` |
-
-<a id="api-66780a30555012cfc063"></a>
-
-### DiagnosticSource.connect
-
-连接建立失败，值 1。
-
-```swift
-case connect
-```
-
-固定公共枚举值；其含义仅限本查询参数、来源分类或协议选择，不能据此推断设备当前状态或纸面完成。
-
-文档 ID：`apple:symbol:s:10PrinterSDK16DiagnosticSourceO7connectyA2CmF`
-
-符号种类：`swift.enum.case`；访问级别：`public`。
-
-<a id="api-e8d7d11912100f81b43b"></a>
-
-### DiagnosticSource.hash(into:)
-
-把枚举值加入 Swift 哈希器。
-
-```swift
-func hash(into hasher: inout Hasher)
-```
-
-Swift Hashable 合成操作，不执行 IO；哈希结果不保证跨进程一致，持久化时使用已文档化的 rawValue。
-
-文档 ID：`apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK16DiagnosticSourceO`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-这是编译器为当前类型带入的协议扩展／合成公共成员。
-
-泛型约束（保留基线原值）：
-
-```json
-{"constraints":[{"kind":"conformance","lhs":"Self","rhs":"Hashable","rhsPrecise":"s:SH"},{"kind":"conformance","lhs":"Self.RawValue","rhs":"Hashable","rhsPrecise":"s:SH"}]}
-```
-
-扩展来源（保留基线原值）：
-
-```json
-{"constraints":[{"kind":"conformance","lhs":"Self","rhs":"Hashable","rhsPrecise":"s:SH"},{"kind":"conformance","lhs":"Self.RawValue","rhs":"Hashable","rhsPrecise":"s:SH"}],"extendedModule":"Swift","typeKind":"swift.protocol"}
-```
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Hasher | `s:s6HasherV` |
-
-<a id="api-529b3dc9f92271ac8987"></a>
-
-### DiagnosticSource.hashValue
-
-枚举的进程内哈希值。
-
-```swift
-var hashValue: Int { get }
-```
-
-Swift Hashable 合成值，用于当前进程集合，不是稳定协议值、持久标识或设备 ID；协议值读取 rawValue。
-
-文档 ID：`apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK16DiagnosticSourceO`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-这是编译器为当前类型带入的协议扩展／合成公共成员。
-
-扩展来源（保留基线原值）：
-
-```json
-{"constraints":[{"kind":"conformance","lhs":"Self","rhs":"Hashable","rhsPrecise":"s:SH"},{"kind":"conformance","lhs":"Self.RawValue","rhs":"Hashable","rhsPrecise":"s:SH"}],"extendedModule":"Swift","typeKind":"swift.protocol"}
-```
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Int | `s:Si` |
-
-<a id="api-19d6f62bc12b14e42e4a"></a>
-
-### DiagnosticSource.init(rawValue:)
-
-按已声明raw值构造枚举。
-
-```swift
-init?(rawValue: UInt32)
-```
-
-匹配本版枚举值时返回对应项，未知数值返回nil；不执行IO、不探测设备，也不自动接受未来枚举。精确raw值见本页编译器枚举表。
-
-文档 ID：`apple:symbol:s:10PrinterSDK16DiagnosticSourceO8rawValueACSgs6UInt32V_tcfc`
-
-符号种类：`swift.init`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-773d22c09798e349e915"></a>
-
-### DiagnosticSource.none
-
-无来源，值 0。
-
-```swift
-case none
-```
-
-固定公共枚举值；其含义仅限本查询参数、来源分类或协议选择，不能据此推断设备当前状态或纸面完成。
-
-文档 ID：`apple:symbol:s:10PrinterSDK16DiagnosticSourceO4noneyA2CmF`
-
-符号种类：`swift.enum.case`；访问级别：`public`。
-
-<a id="api-1e2cc4f7310d0247a60e"></a>
-
-### DiagnosticSource.operation
-
-业务操作失败，值 2。
-
-```swift
-case operation
-```
-
-固定公共枚举值；其含义仅限本查询参数、来源分类或协议选择，不能据此推断设备当前状态或纸面完成。
-
-文档 ID：`apple:symbol:s:10PrinterSDK16DiagnosticSourceO9operationyA2CmF`
-
-符号种类：`swift.enum.case`；访问级别：`public`。
-
-<a id="api-00c034c828329094fa66"></a>
-
-### DiagnosticSource.transport
-
-平台主动断连，值 3。
-
-```swift
-case transport
-```
-
-固定公共枚举值；其含义仅限本查询参数、来源分类或协议选择，不能据此推断设备当前状态或纸面完成。
-
-文档 ID：`apple:symbol:s:10PrinterSDK16DiagnosticSourceO9transportyA2CmF`
-
-符号种类：`swift.enum.case`；访问级别：`public`。
-
-<a id="api-601bacfa9f80a1aec096"></a>
-
-### DiagnosticSource.userDisconnect
-
-调用方主动断开，值 4。
-
-```swift
-case userDisconnect
-```
-
-固定公共枚举值；其含义仅限本查询参数、来源分类或协议选择，不能据此推断设备当前状态或纸面完成。
-
-文档 ID：`apple:symbol:s:10PrinterSDK16DiagnosticSourceO14userDisconnectyA2CmF`
-
-符号种类：`swift.enum.case`；访问级别：`public`。
-
 <a id="api-e7eba043862754865338"></a>
 
 ## DiscoveredPrinter
@@ -1725,7 +896,7 @@ case userDisconnect
 struct DiscoveredPrinter
 ```
 
-由 `BLEScanner` 返回的不可变值；相同 `identifier` 的多次广播合并为一项，列表保留首次发现顺序。发现结果仅用于应用选择连接目标，不证明设备是打印机、支持某种协议或已完成硬件验收。没有公开初始化入口，也不包含 CoreBluetooth 原生句柄。
+由 `PrinterManager.scanBLE` 的完成回调返回的不可变值；相同 `identifier` 的多次广播合并为一项，列表保留首次发现顺序。发现结果仅用于应用选择连接目标，不证明设备是打印机、支持某种协议或已完成硬件验收。没有公开初始化入口，也不包含 CoreBluetooth 原生句柄。
 
 文档 ID：`apple:symbol:s:10PrinterSDK010DiscoveredA0V`
 
@@ -1763,7 +934,7 @@ CoreBluetooth 为外设提供的不透明标识符。
 let identifier: UUID
 ```
 
-传给 `MobilePrinter(bleIdentifier:options:)` 的选择结果。它是 iOS 外设 UUID，不是 Android 蓝牙 MAC 地址，也不是跨平台设备序列号；连接前目标须已被 CoreBluetooth 识别。应用应把设备身份诊断按隐私要求处理。
+传给 `PrinterManager.connect(bleIdentifier:options:timeoutMilliseconds:completion:onDisconnected:)` 的选择结果。它是 iOS 外设 UUID，不是 Android 蓝牙 MAC 地址，也不是跨平台设备序列号；连接前目标须已被 CoreBluetooth 识别。应用应把设备身份诊断按隐私要求处理。
 
 文档 ID：`apple:symbol:s:10PrinterSDK010DiscoveredA0V10identifier10Foundation4UUIDVvp`
 
@@ -1819,276 +990,6 @@ let rssi: Int
 | --- | --- |
 | Int | `s:Si` |
 
-<a id="api-33ee6f34f5b5b231c733"></a>
-
-## ErrorDiagnostic
-
-<a id="api-0a45bc3ca5dffe636003"></a>
-
-### ErrorDiagnostic
-
-不可变的有界错误诊断。
-
-```swift
-struct ErrorDiagnostic
-```
-
-设备保留一条最新记录，operation 的记录独立存活。sequence=0 表示无设备记录。只包含稳定错误码、关联代次和经筛选的诊断，不携带打印载荷、地址或平台自由文本；单调时间只可在当前进程内比较。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15ErrorDiagnosticV`
-
-符号种类：`swift.struct`；访问级别：`public`。
-
-<a id="api-c024781fce5fa93e4830"></a>
-
-### ErrorDiagnostic.!=(_:_:)
-
-按值比较两个 ErrorDiagnostic 是否不同。
-
-```swift
-static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool
-```
-
-Swift Equatable 提供的比较，不执行 IO、不刷新状态。比较本次值或枚举，不能把相等的快照当作设备仍在线、硬件正常或纸面打印完成的证明。
-
-文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK15ErrorDiagnosticV`
-
-符号种类：`swift.func.op`；访问级别：`public`。
-
-这是编译器为当前类型带入的协议扩展／合成公共成员。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"Swift","typeKind":"swift.protocol"}
-```
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Bool | `s:Sb` |
-
-<a id="api-56104f0cf92b09ed6fbc"></a>
-
-### ErrorDiagnostic.connectionGeneration
-
-产生记录时的连接成功代次。
-
-```swift
-let connectionGeneration: UInt64
-```
-
-较早代次记录在重连后仍保留；与当前设备代次比较，避免把旧错误显示为当前故障。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15ErrorDiagnosticV20connectionGenerations6UInt64Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
-
-<a id="api-7579e7cc51a093664182"></a>
-
-### ErrorDiagnostic.domain
-
-经过筛选的错误域。
-
-```swift
-let domain: String
-```
-
-最多 31 个 UTF-8 字节；无域时为空字符串，不包含地址或任意平台错误文本。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15ErrorDiagnosticV6domainSSvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| String | `s:SS` |
-
-<a id="api-4b7bdc7a52cfd52ce457"></a>
-
-### ErrorDiagnostic.errorCode
-
-稳定 SDK 错误码。
-
-```swift
-let errorCode: Int32
-```
-
-成功或主动断开记录可为 0；业务判断使用此字段，平台错误码仅供诊断。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15ErrorDiagnosticV9errorCodes5Int32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Int32 | `s:s5Int32V` |
-
-<a id="api-644377568a008990faf5"></a>
-
-### ErrorDiagnostic.message
-
-经过筛选的有界错误说明。
-
-```swift
-let message: String
-```
-
-最多 191 个 UTF-8 字节；无说明时为空字符串。稳定业务判断继续使用 errorCode。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15ErrorDiagnosticV7messageSSvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| String | `s:SS` |
-
-<a id="api-030738a1ab4d8bd8882e"></a>
-
-### ErrorDiagnostic.nativeCode
-
-可选平台诊断码。
-
-```swift
-let nativeCode: Int64?
-```
-
-nil 表示未提供平台原生码；有值也仅用于诊断，应结合 domain 解释，不作为稳定业务分支。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15ErrorDiagnosticV10nativeCodes5Int64VSgvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Int64 | `s:s5Int64V` |
-
-<a id="api-2991c963667c3d1d1b50"></a>
-
-### ErrorDiagnostic.operationID
-
-相关 operation 的标识。
-
-```swift
-let operationID: UInt64
-```
-
-0 表示记录没有关联业务操作；operation 结果可在设备关闭后独立读取。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15ErrorDiagnosticV11operationIDs6UInt64Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
-
-<a id="api-fed6af8e1cddc46c2f4d"></a>
-
-### ErrorDiagnostic.sampledMonotonicMilliseconds
-
-诊断记录的进程单调时间，单位毫秒。
-
-```swift
-let sampledMonotonicMilliseconds: UInt64?
-```
-
-nil 表示没有采样时间；非 nil 为当前进程单调时间，单位毫秒，不是墙上时间，只可在同一进程计算相对时长。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15ErrorDiagnosticV28sampledMonotonicMillisecondss6UInt64VSgvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
-
-<a id="api-a707ed48511b9b94fd46"></a>
-
-### ErrorDiagnostic.sequence
-
-设备诊断的递增记录序号。
-
-```swift
-let sequence: UInt64
-```
-
-0 表示尚无设备诊断；这是最新一条记录的身份，不是历史记录数或全局日志编号。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15ErrorDiagnosticV8sequences6UInt64Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
-
-<a id="api-b549bb306001fcfbb3a2"></a>
-
-### ErrorDiagnostic.source
-
-诊断来源分类。
-
-```swift
-let source: DiagnosticSource
-```
-
-值为 NONE、CONNECT、OPERATION、TRANSPORT 或 USER_DISCONNECT，分类不表示纸面打印结果。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15ErrorDiagnosticV6sourceAA0D6SourceOvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| DiagnosticSource | `s:10PrinterSDK16DiagnosticSourceO` |
-
-<a id="api-02182e3c7c479930aac9"></a>
-
-### ErrorDiagnostic.transportEpoch
-
-发生记录时的底层 open 尝试代次。
-
-```swift
-let transportEpoch: UInt64
-```
-
-用于过滤旧连接回调，不等同于成功连接 generation；旧 epoch 的断连信号不会影响新连接。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15ErrorDiagnosticV14transportEpochs6UInt64Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
-
 <a id="api-63244971bb8665f0438c"></a>
 
 ## FeatureSupport
@@ -2103,7 +1004,7 @@ let transportEpoch: UInt64
 struct FeatureSupport
 ```
 
-由 `MobilePrinter.feature` 返回，无公开初始化入口。所有字段只读，读值不进行 IO；各字段是底层契约数值，避免把非零实现当作硬件认证。当前显式 BLE 配置可以已实现但设备支持未知。
+由 `PrinterCapabilities.feature` 返回，无公开初始化入口。所有字段只读，读值不进行 IO；各字段是底层契约数值，避免把非零实现当作硬件认证。当前显式 BLE 配置可以已实现但设备支持未知。
 
 文档 ID：`apple:symbol:s:10PrinterSDK14FeatureSupportV`
 
@@ -2351,7 +1252,7 @@ let supportedValues: UInt32
 enum FinishScope
 ```
 
-配合 `submitReceiptGray8(finishScope:)` 使用；范围影响整单长度预算与结束动作次数，不改变份数。不支持的策略组合在 IO 前明确拒绝，不能把多份拆为循环入队来替代一个原子队列条目。
+用于 ReceiptFinishOptions 描述的小票结束策略；范围影响整单长度预算和结束动作次数，不改变份数。不支持的组合在 IO 前拒绝；不得将多份拆成多次入队来替代一个原子作业。
 
 文档 ID：`apple:symbol:s:10PrinterSDK11FinishScopeO`
 
@@ -2506,320 +1407,6 @@ init?(rawValue: UInt32)
 | 名称 | precise identifier |
 | --- | --- |
 | UInt32 | `s:s6UInt32V` |
-
-<a id="api-712e0c363892c35925d7"></a>
-
-## HardwareState
-
-<a id="api-531c2774072fab40e06d"></a>
-
-### HardwareState
-
-打印机硬件状态枚举。
-
-```swift
-enum HardwareState
-```
-
-当前仅 unknown=0，必须保持未知展示；后端未实现硬件查询，不推断就绪、缺纸或打印完成。
-
-文档 ID：`apple:symbol:s:10PrinterSDK13HardwareStateO`
-
-符号种类：`swift.enum`；访问级别：`public`。
-
-<a id="api-397829ebb06b0ec63c8b"></a>
-
-### HardwareState.!=(_:_:)
-
-编译器提供的值不等比较。
-
-```swift
-static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool
-```
-
-比较两个同类型快照或状态的值；只反映已采样值差异，不刷新设备状态或执行打印机 IO。
-
-文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK13HardwareStateO`
-
-符号种类：`swift.func.op`；访问级别：`public`。
-
-这是编译器为当前类型带入的协议扩展／合成公共成员。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"Swift","typeKind":"swift.protocol"}
-```
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Bool | `s:Sb` |
-
-<a id="api-eb13be33f52d4c5fbe10"></a>
-
-### HardwareState.hash(into:)
-
-编译器提供的枚举哈希计算。
-
-```swift
-func hash(into hasher: inout Hasher)
-```
-
-由 Hashable 协议合成，仅向当前进程 hasher 添加值，不触发状态查询或打印机 IO。
-
-文档 ID：`apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK13HardwareStateO`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-这是编译器为当前类型带入的协议扩展／合成公共成员。
-
-泛型约束（保留基线原值）：
-
-```json
-{"constraints":[{"kind":"conformance","lhs":"Self","rhs":"Hashable","rhsPrecise":"s:SH"},{"kind":"conformance","lhs":"Self.RawValue","rhs":"Hashable","rhsPrecise":"s:SH"}]}
-```
-
-扩展来源（保留基线原值）：
-
-```json
-{"constraints":[{"kind":"conformance","lhs":"Self","rhs":"Hashable","rhsPrecise":"s:SH"},{"kind":"conformance","lhs":"Self.RawValue","rhs":"Hashable","rhsPrecise":"s:SH"}],"extendedModule":"Swift","typeKind":"swift.protocol"}
-```
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Hasher | `s:s6HasherV` |
-
-<a id="api-e0bd33e6c35c7e0035f6"></a>
-
-### HardwareState.hashValue
-
-编译器提供的枚举哈希值。
-
-```swift
-var hashValue: Int { get }
-```
-
-仅用于当前进程集合操作；不稳定，不能代替 raw 值持久化或作为设备状态协议。
-
-文档 ID：`apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK13HardwareStateO`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-这是编译器为当前类型带入的协议扩展／合成公共成员。
-
-扩展来源（保留基线原值）：
-
-```json
-{"constraints":[{"kind":"conformance","lhs":"Self","rhs":"Hashable","rhsPrecise":"s:SH"},{"kind":"conformance","lhs":"Self.RawValue","rhs":"Hashable","rhsPrecise":"s:SH"}],"extendedModule":"Swift","typeKind":"swift.protocol"}
-```
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Int | `s:Si` |
-
-<a id="api-b2f6904678ca7764b9a5"></a>
-
-### HardwareState.init(rawValue:)
-
-按已声明raw值构造枚举。
-
-```swift
-init?(rawValue: UInt32)
-```
-
-匹配本版枚举值时返回对应项，未知数值返回nil；不执行IO、不探测设备，也不自动接受未来枚举。精确raw值见本页编译器枚举表。
-
-文档 ID：`apple:symbol:s:10PrinterSDK13HardwareStateO8rawValueACSgs6UInt32V_tcfc`
-
-符号种类：`swift.init`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-ed2755a34dd467c1fba5"></a>
-
-### HardwareState.unknown
-
-硬件状态未知。
-
-```swift
-case unknown
-```
-
-UInt32 raw 值为 0；当前标准后端返回此值，硬件条件位为 0、采样时间为 nil。
-
-文档 ID：`apple:symbol:s:10PrinterSDK13HardwareStateO7unknownyA2CmF`
-
-符号种类：`swift.enum.case`；访问级别：`public`。
-
-<a id="api-806056f7885dc5612709"></a>
-
-## HardwareStatusResult
-
-<a id="api-c3f1c4c9b6ee23b753ae"></a>
-
-### HardwareStatusResult
-
-成功硬件状态查询的不可变结果。
-
-```swift
-struct HardwareStatusResult
-```
-
-仅成功且 responseValid 的状态 operation 可读取；knownConditions 表示已知位，activeConditions 仅在已知位内有意义。未知位不能推断正常；连接代次和采样时间用于判断结果是否过期。当前标准后端不提供硬件结果。
-
-文档 ID：`apple:symbol:s:10PrinterSDK20HardwareStatusResultV`
-
-符号种类：`swift.struct`；访问级别：`public`。
-
-<a id="api-70fc335f763ddf43477e"></a>
-
-### HardwareStatusResult.!=(_:_:)
-
-按值比较两个 HardwareStatusResult 是否不同。
-
-```swift
-static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool
-```
-
-Swift Equatable 提供的比较，不执行 IO、不刷新状态。比较本次值或枚举，不能把相等的快照当作设备仍在线、硬件正常或纸面打印完成的证明。
-
-文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK20HardwareStatusResultV`
-
-符号种类：`swift.func.op`；访问级别：`public`。
-
-这是编译器为当前类型带入的协议扩展／合成公共成员。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"Swift","typeKind":"swift.protocol"}
-```
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Bool | `s:Sb` |
-
-<a id="api-d28e164baa755463f3bf"></a>
-
-### HardwareStatusResult.activeConditions
-
-已知条件中当前激活的状态位。
-
-```swift
-let activeConditions: UInt32
-```
-
-只在 knownConditions 内有效；不能从零值推出所有硬件状态正常。
-
-文档 ID：`apple:symbol:s:10PrinterSDK20HardwareStatusResultV16activeConditionss6UInt32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-71c6cbd8bccf80123164"></a>
-
-### HardwareStatusResult.connectionGeneration
-
-结果所属的成功连接代次。
-
-```swift
-let connectionGeneration: UInt64
-```
-
-断开或重连后旧结果不能作为新连接的当前硬件状态。
-
-文档 ID：`apple:symbol:s:10PrinterSDK20HardwareStatusResultV20connectionGenerations6UInt64Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
-
-<a id="api-6c219c5d2216894585d9"></a>
-
-### HardwareStatusResult.evidence
-
-硬件状态结果的证据来源。
-
-```swift
-let evidence: UInt32
-```
-
-由原生结果复制；不将 SDK 排队或 DATA_SENT 当作硬件状态依据。
-
-文档 ID：`apple:symbol:s:10PrinterSDK20HardwareStatusResultV8evidences6UInt32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-6c29279c0c9656970591"></a>
-
-### HardwareStatusResult.knownConditions
-
-本次响应明确报告的状态位掩码。
-
-```swift
-let knownConditions: UInt32
-```
-
-只对置位条件解释 activeConditions；未置位条件保持未知。
-
-文档 ID：`apple:symbol:s:10PrinterSDK20HardwareStatusResultV15knownConditionss6UInt32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-c14e22e843149533a912"></a>
-
-### HardwareStatusResult.sampledMonotonicMilliseconds
-
-状态采样的进程单调时间，单位毫秒。
-
-```swift
-let sampledMonotonicMilliseconds: UInt64
-```
-
-用于同进程的相对陈旧度判断，不是墙上时间。
-
-文档 ID：`apple:symbol:s:10PrinterSDK20HardwareStatusResultV28sampledMonotonicMillisecondss6UInt64Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
 
 <a id="api-41361c67b37b815a38ae"></a>
 
@@ -3037,7 +1624,7 @@ case threshold
 struct LabelJobOptions
 ```
 
-只保存参数，build/submit进行完整校验；宽高和DPI大于零，copies为1..100，原点非负，不自动裁剪。页面高度是一份输出，form描述本次结束位置。
+只保存参数，Manager构建和提交进行完整校验；宽高和DPI大于零，copies为1..100，原点非负，不自动裁剪。页面高度是一份输出，form描述本次结束位置。
 
 文档 ID：`apple:symbol:s:10PrinterSDK15LabelJobOptionsV`
 
@@ -3053,7 +1640,7 @@ struct LabelJobOptions
 let copies: UInt32
 ```
 
-初始化后不可变；属于作业参数而非连接默认配置，最终有效性由build/submit校验。
+初始化后不可变；属于作业参数而非连接默认配置，最终有效性由Manager构建和提交校验。
 
 文档 ID：`apple:symbol:s:10PrinterSDK15LabelJobOptionsV6copiess6UInt32Vvp`
 
@@ -3075,7 +1662,7 @@ let copies: UInt32
 let dpi: UInt32
 ```
 
-初始化后不可变；属于作业参数而非连接默认配置，最终有效性由build/submit校验。
+初始化后不可变；属于作业参数而非连接默认配置，最终有效性由Manager构建和提交校验。
 
 文档 ID：`apple:symbol:s:10PrinterSDK15LabelJobOptionsV3dpis6UInt32Vvp`
 
@@ -3097,7 +1684,7 @@ true请求下一标签起点结束；false在内容结束。
 let form: Bool
 ```
 
-初始化后不可变；属于作业参数而非连接默认配置，最终有效性由build/submit校验。
+初始化后不可变；属于作业参数而非连接默认配置，最终有效性由Manager构建和提交校验。
 
 文档 ID：`apple:symbol:s:10PrinterSDK15LabelJobOptionsV4formSbvp`
 
@@ -3119,7 +1706,7 @@ let form: Bool
 let heightDots: UInt32
 ```
 
-初始化后不可变；属于作业参数而非连接默认配置，最终有效性由build/submit校验。
+初始化后不可变；属于作业参数而非连接默认配置，最终有效性由Manager构建和提交校验。
 
 文档 ID：`apple:symbol:s:10PrinterSDK15LabelJobOptionsV10heightDotss6UInt32Vvp`
 
@@ -3141,7 +1728,7 @@ let heightDots: UInt32
 init(widthDots: UInt32, heightDots: UInt32, dpi: UInt32, originXDots: Int32 = 0, originYDots: Int32 = 0, copies: UInt32 = 1, form: Bool = false)
 ```
 
-只保存参数，build/submit进行完整校验；宽高和DPI大于零，copies为1..100，原点非负，不自动裁剪。页面高度是一份输出，form描述本次结束位置。 此初始化不执行IO，也不提前证明参数或硬件支持；实际校验在Builder.build与MobilePrinter.submit进行。
+只保存参数，Manager构建和提交进行完整校验；宽高和DPI大于零，copies为1..100，原点非负，不自动裁剪。页面高度是一份输出，form描述本次结束位置。 此初始化不执行IO，也不提前证明参数或硬件支持；实际校验在Manager准备后的native构建与准入进行。
 
 文档 ID：`apple:symbol:s:10PrinterSDK15LabelJobOptionsV9widthDots06heightG03dpi11originXDots0J5YDots6copies4formACs6UInt32V_A2Ls5Int32VAnLSbtcfc`
 
@@ -3165,7 +1752,7 @@ init(widthDots: UInt32, heightDots: UInt32, dpi: UInt32, originXDots: Int32 = 0,
 let originXDots: Int32
 ```
 
-初始化后不可变；属于作业参数而非连接默认配置，最终有效性由build/submit校验。
+初始化后不可变；属于作业参数而非连接默认配置，最终有效性由Manager构建和提交校验。
 
 文档 ID：`apple:symbol:s:10PrinterSDK15LabelJobOptionsV11originXDotss5Int32Vvp`
 
@@ -3187,7 +1774,7 @@ let originXDots: Int32
 let originYDots: Int32
 ```
 
-初始化后不可变；属于作业参数而非连接默认配置，最终有效性由build/submit校验。
+初始化后不可变；属于作业参数而非连接默认配置，最终有效性由Manager构建和提交校验。
 
 文档 ID：`apple:symbol:s:10PrinterSDK15LabelJobOptionsV11originYDotss5Int32Vvp`
 
@@ -3209,7 +1796,7 @@ let originYDots: Int32
 let widthDots: UInt32
 ```
 
-初始化后不可变；属于作业参数而非连接默认配置，最终有效性由build/submit校验。
+初始化后不可变；属于作业参数而非连接默认配置，最终有效性由Manager构建和提交校验。
 
 文档 ID：`apple:symbol:s:10PrinterSDK15LabelJobOptionsV9widthDotss6UInt32Vvp`
 
@@ -3263,6 +1850,306 @@ static func bleOptions(maxWriteBytes: Int = 512) throws -> BLEOptions
 | --- | --- |
 | BLEOptions | `s:10PrinterSDK10BLEOptionsV` |
 | Int | `s:Si` |
+
+<a id="api-625d7c79302095211bcb"></a>
+
+## ManagerOutcome
+
+<a id="api-3c6f85967ca0141b6cfb"></a>
+
+### ManagerOutcome
+
+请求的终态分类。
+
+```swift
+enum ManagerOutcome
+```
+
+success、failure和cancelled分别表示成功、失败及取消；同时检查稳定code和输出证据以决定应用提示。
+
+文档 ID：`apple:symbol:s:10PrinterSDK14ManagerOutcomeO`
+
+符号种类：`swift.enum`；访问级别：`public`。
+
+<a id="api-e03191c4ce4d20764463"></a>
+
+### ManagerOutcome.!=(_:_:)
+
+比较两个只读值是否不同。
+
+```swift
+static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool
+```
+
+由编译器依据类型的Equatable语义合成；比较不访问设备，不创建打印请求。
+
+文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK14ManagerOutcomeO`
+
+符号种类：`swift.func.op`；访问级别：`public`。
+
+这是编译器为当前类型带入的协议扩展／合成公共成员。
+
+扩展来源（保留基线原值）：
+
+```json
+{"extendedModule":"Swift","typeKind":"swift.protocol"}
+```
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Bool | `s:Sb` |
+
+<a id="api-e0724738dd1226b09583"></a>
+
+### ManagerOutcome.cancelled
+
+请求取消。
+
+```swift
+case cancelled
+```
+
+该常量的精确名称及编译值由公开基线固定；使用与本类型匹配的字段或参数，能力是否受支持以profile描述和请求校验为准。
+
+文档 ID：`apple:symbol:s:10PrinterSDK14ManagerOutcomeO9cancelledyA2CmF`
+
+符号种类：`swift.enum.case`；访问级别：`public`。
+
+<a id="api-acb0001b23a99a7238a0"></a>
+
+### ManagerOutcome.failure
+
+请求失败。
+
+```swift
+case failure
+```
+
+该常量的精确名称及编译值由公开基线固定；使用与本类型匹配的字段或参数，能力是否受支持以profile描述和请求校验为准。
+
+文档 ID：`apple:symbol:s:10PrinterSDK14ManagerOutcomeO7failureyA2CmF`
+
+符号种类：`swift.enum.case`；访问级别：`public`。
+
+<a id="api-863a858c6e9dc3938409"></a>
+
+### ManagerOutcome.success
+
+请求成功。
+
+```swift
+case success
+```
+
+该常量的精确名称及编译值由公开基线固定；使用与本类型匹配的字段或参数，能力是否受支持以profile描述和请求校验为准。
+
+文档 ID：`apple:symbol:s:10PrinterSDK14ManagerOutcomeO7successyA2CmF`
+
+符号种类：`swift.enum.case`；访问级别：`public`。
+
+<a id="api-d5c711f55a02b7703b81"></a>
+
+## ManagerResult
+
+<a id="api-d56d334dd7a53c7814e9"></a>
+
+### ManagerResult
+
+单次请求的不可变完成结果。
+
+```swift
+struct ManagerResult<Value> where Value : Sendable
+```
+
+包含请求标识、成功/失败/取消、稳定错误码、辅助消息、完成证据、可能已输出标记及可选业务值。主线程回调恰好完成一次；dataSent仅证明数据发送完成，不证明纸张已打印。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13ManagerResultV`
+
+符号种类：`swift.struct`；访问级别：`public`。
+
+泛型约束（保留基线原值）：
+
+```json
+{"constraints":[{"kind":"conformance","lhs":"Value","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}],"parameters":[{"depth":0,"index":0,"name":"Value"}]}
+```
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Sendable | `s:s8SendableP` |
+
+<a id="api-cb62e9deec0766a167ff"></a>
+
+### ManagerResult.code
+
+稳定SDK错误码。
+
+```swift
+let code: Int32
+```
+
+0表示成功，其他值按SDK错误契约解释；不要依赖可读message进行程序分支。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13ManagerResultV4codes5Int32Vvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Int32 | `s:s5Int32V` |
+
+<a id="api-82c678c43ee69cf97faf"></a>
+
+### ManagerResult.completion
+
+打印完成证据级别。
+
+```swift
+let completion: CompletionLevel
+```
+
+none表示没有打印完成证据，dataSent表示传输完成，deviceConfirmed仅在协议提供明确设备确认时使用。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13ManagerResultV10completionAA15CompletionLevelOvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| CompletionLevel | `s:10PrinterSDK15CompletionLevelO` |
+
+<a id="api-f78e30aca271cd8f90c4"></a>
+
+### ManagerResult.isSuccess
+
+是否属于成功终态。
+
+```swift
+var isSuccess: Bool { get }
+```
+
+按outcome == success计算；仍需单独读取completion分辨数据发送与设备确认。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13ManagerResultV9isSuccessSbvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Bool | `s:Sb` |
+
+<a id="api-b6ff4bc88b3b1789c28e"></a>
+
+### ManagerResult.message
+
+可读的辅助错误消息。
+
+```swift
+let message: String
+```
+
+用于集成诊断和界面提示；程序逻辑以稳定code为主，不解析该文本。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13ManagerResultV7messageSSvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| String | `s:SS` |
+
+<a id="api-7e6703d4eaf50b7c6138"></a>
+
+### ManagerResult.outcome
+
+请求成功、失败或取消的分类。
+
+```swift
+let outcome: ManagerOutcome
+```
+
+与稳定code及完成证据一起读取；取消或失败不自动表示设备没有产生部分输出。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13ManagerResultV7outcomeAA0C7OutcomeOvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| ManagerOutcome | `s:10PrinterSDK14ManagerOutcomeO` |
+
+<a id="api-8884170bc72ef1c2ea76"></a>
+
+### ManagerResult.outputMayHaveOccurred
+
+是否可能已发送了不可撤回的输出。
+
+```swift
+let outputMayHaveOccurred: Bool
+```
+
+true时设备可能已经收到部分命令或像素；应用不得据此自动重试或重放，需自行决定提示和后续人工操作。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13ManagerResultV21outputMayHaveOccurredSbvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Bool | `s:Sb` |
+
+<a id="api-c9a074ae453b91eb03fe"></a>
+
+### ManagerResult.requestID
+
+请求标识。
+
+```swift
+let requestID: RequestID
+```
+
+仅能由创建该标识的Manager识别；用于关联完成结果和发送取消意图。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13ManagerResultV9requestIDAA07RequestF0Vvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| RequestID | `s:10PrinterSDK9RequestIDV` |
+
+<a id="api-3593583350ae830705d0"></a>
+
+### ManagerResult.value
+
+成功结果的可选业务值。
+
+```swift
+let value: Value?
+```
+
+用于设备列表、能力、身份和状态查询；没有返回值的请求为Void/null，失败时不要假定业务值存在。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13ManagerResultV5valuexSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
 
 <a id="api-e9f6609ce460a51cc89f"></a>
 
@@ -3450,6 +2337,176 @@ init?(rawValue: UInt32)
 | --- | --- |
 | UInt32 | `s:s6UInt32V` |
 
+<a id="api-443778f8722036fd1c08"></a>
+
+## MediaPersistencePolicy
+
+<a id="api-96adc8ca41123b93cf2a"></a>
+
+### MediaPersistencePolicy
+
+介质设置的持久化许可。
+
+```swift
+enum MediaPersistencePolicy
+```
+
+volatileOnly要求仅临时设置；allowPersistent仅允许明确profile已支持的持久化行为，不新增硬件能力或自动执行持久写入。
+
+文档 ID：`apple:symbol:s:10PrinterSDK22MediaPersistencePolicyO`
+
+符号种类：`swift.enum`；访问级别：`public`。
+
+<a id="api-67310e80954e5f9fbbd8"></a>
+
+### MediaPersistencePolicy.!=(_:_:)
+
+比较两个只读值是否不同。
+
+```swift
+static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool
+```
+
+由编译器依据类型的Equatable语义合成；比较不访问设备，不创建打印请求。
+
+文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK22MediaPersistencePolicyO`
+
+符号种类：`swift.func.op`；访问级别：`public`。
+
+这是编译器为当前类型带入的协议扩展／合成公共成员。
+
+扩展来源（保留基线原值）：
+
+```json
+{"extendedModule":"Swift","typeKind":"swift.protocol"}
+```
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Bool | `s:Sb` |
+
+<a id="api-9547492309a59c1bbcce"></a>
+
+### MediaPersistencePolicy.allowPersistent
+
+允许明确支持的持久化介质设置。
+
+```swift
+case allowPersistent
+```
+
+该常量的精确名称及编译值由公开基线固定；使用与本类型匹配的字段或参数，能力是否受支持以profile描述和请求校验为准。
+
+文档 ID：`apple:symbol:s:10PrinterSDK22MediaPersistencePolicyO15allowPersistentyA2CmF`
+
+符号种类：`swift.enum.case`；访问级别：`public`。
+
+<a id="api-16d45508326bf388964f"></a>
+
+### MediaPersistencePolicy.hash(into:)
+
+将只读值纳入哈希器。
+
+```swift
+func hash(into hasher: inout Hasher)
+```
+
+由类型的Hashable语义合成，供集合使用；哈希值不属于持久化协议或native请求标识。
+
+文档 ID：`apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK22MediaPersistencePolicyO`
+
+符号种类：`swift.method`；访问级别：`public`。
+
+这是编译器为当前类型带入的协议扩展／合成公共成员。
+
+泛型约束（保留基线原值）：
+
+```json
+{"constraints":[{"kind":"conformance","lhs":"Self","rhs":"Hashable","rhsPrecise":"s:SH"},{"kind":"conformance","lhs":"Self.RawValue","rhs":"Hashable","rhsPrecise":"s:SH"}]}
+```
+
+扩展来源（保留基线原值）：
+
+```json
+{"constraints":[{"kind":"conformance","lhs":"Self","rhs":"Hashable","rhsPrecise":"s:SH"},{"kind":"conformance","lhs":"Self.RawValue","rhs":"Hashable","rhsPrecise":"s:SH"}],"extendedModule":"Swift","typeKind":"swift.protocol"}
+```
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Hasher | `s:s6HasherV` |
+
+<a id="api-bd93d1a16820c119d534"></a>
+
+### MediaPersistencePolicy.hashValue
+
+读取只读值的进程内哈希。
+
+```swift
+var hashValue: Int { get }
+```
+
+由类型的Hashable语义合成；哈希不保证跨进程稳定，不用于设备身份或持久化请求恢复。
+
+文档 ID：`apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK22MediaPersistencePolicyO`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+这是编译器为当前类型带入的协议扩展／合成公共成员。
+
+扩展来源（保留基线原值）：
+
+```json
+{"constraints":[{"kind":"conformance","lhs":"Self","rhs":"Hashable","rhsPrecise":"s:SH"},{"kind":"conformance","lhs":"Self.RawValue","rhs":"Hashable","rhsPrecise":"s:SH"}],"extendedModule":"Swift","typeKind":"swift.protocol"}
+```
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Int | `s:Si` |
+
+<a id="api-ebb59f9a2b2a09ee3581"></a>
+
+### MediaPersistencePolicy.init(rawValue:)
+
+构造MediaPersistencePolicy只读数据。
+
+```swift
+init?(rawValue: UInt32)
+```
+
+volatileOnly要求仅临时设置；allowPersistent仅允许明确profile已支持的持久化行为，不新增硬件能力或自动执行持久写入。
+
+文档 ID：`apple:symbol:s:10PrinterSDK22MediaPersistencePolicyO8rawValueACSgs6UInt32V_tcfc`
+
+符号种类：`swift.init`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| UInt32 | `s:s6UInt32V` |
+
+<a id="api-b44950f897b1364c8141"></a>
+
+### MediaPersistencePolicy.volatileOnly
+
+只允许临时介质设置。
+
+```swift
+case volatileOnly
+```
+
+该常量的精确名称及编译值由公开基线固定；使用与本类型匹配的字段或参数，能力是否受支持以profile描述和请求校验为准。
+
+文档 ID：`apple:symbol:s:10PrinterSDK22MediaPersistencePolicyO12volatileOnlyyA2CmF`
+
+符号种类：`swift.enum.case`；访问级别：`public`。
+
 <a id="api-623f02309548c44d0ebb"></a>
 
 ## MediaRequirement
@@ -3502,7 +2559,7 @@ nil表示未指定，不能当作设备报告；存在的宽度/长度须为正�
 init(tracking: MediaMode? = nil, widthMicrometers: UInt32? = nil, labelLengthMicrometers: UInt32? = nil, gapLengthMicrometers: UInt32? = nil, markLengthMicrometers: UInt32? = nil, markOffsetMicrometers: Int32? = nil, verification: MediaVerificationPolicy = .allowLastSent)
 ```
 
-设为nil表示没有前置要求；提供值时tracking必须存在，其他nil字段未指定。只允许已有发送证据或明确读回；当前仅CPCL tracking+allowLastSent可提交，其他字段/读回要求1004拒绝且零IO。 此初始化不执行IO，也不提前证明参数或硬件支持；实际校验在Builder.build与MobilePrinter.submit进行。
+设为nil表示没有前置要求；提供值时tracking必须存在，其他nil字段未指定。只允许已有发送证据或明确读回；当前仅CPCL tracking+allowLastSent可提交，其他字段/读回要求1004拒绝且零IO。 此初始化不执行IO，也不提前证明参数或硬件支持；实际校验在Manager准备后的native构建与准入进行。
 
 文档 ID：`apple:symbol:s:10PrinterSDK16MediaRequirementV8tracking16widthMicrometers011labelLengthG003gapiG004markiG00k6OffsetG012verificationAcA0C4ModeOSg_s6UInt32VSgA3Ps5Int32VSgAA0C18VerificationPolicyOtcfc`
 
@@ -3640,6 +2697,205 @@ let widthMicrometers: UInt32?
 nil表示未指定，不能当作设备报告；存在的宽度/长度须为正并与tracking匹配。当前后端只支持tracking及allowLastSent，其他要求明确拒绝。
 
 文档 ID：`apple:symbol:s:10PrinterSDK16MediaRequirementV16widthMicrometerss6UInt32VSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| UInt32 | `s:s6UInt32V` |
+
+<a id="api-a2a66f93bc7ef29553ce"></a>
+
+## MediaSettings
+
+<a id="api-a36e11d072d00fccc51b"></a>
+
+### MediaSettings
+
+完整的只读介质请求。
+
+```swift
+struct MediaSettings
+```
+
+可选字段描述跟踪、宽度、标签长度、间隙、黑标及偏移，并显式给出持久化策略。字段存在不表示设备支持；当前明确profile只实现已确认的tracking能力，其他字段经准入返回Unsupported。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13MediaSettingsV`
+
+符号种类：`swift.struct`；访问级别：`public`。
+
+<a id="api-e77c9e28520d52015d59"></a>
+
+### MediaSettings.gapLengthMicrometers
+
+可选间隙长度。
+
+```swift
+let gapLengthMicrometers: UInt32?
+```
+
+单位为微米；nil表示不设置，数值在请求准入时校验。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13MediaSettingsV20gapLengthMicrometerss6UInt32VSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| UInt32 | `s:s6UInt32V` |
+
+<a id="api-9b9f4a97383f54daa816"></a>
+
+### MediaSettings.init(tracking:widthMicrometers:labelLengthMicrometers:gapLengthMicrometers:markLengthMicrometers:markOffsetMicrometers:persistence:)
+
+构造MediaSettings只读数据。
+
+```swift
+init(tracking: MediaMode? = nil, widthMicrometers: UInt32? = nil, labelLengthMicrometers: UInt32? = nil, gapLengthMicrometers: UInt32? = nil, markLengthMicrometers: UInt32? = nil, markOffsetMicrometers: Int32? = nil, persistence: MediaPersistencePolicy = .volatileOnly)
+```
+
+可选字段描述跟踪、宽度、标签长度、间隙、黑标及偏移，并显式给出持久化策略。字段存在不表示设备支持；当前明确profile只实现已确认的tracking能力，其他字段经准入返回Unsupported。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13MediaSettingsV8tracking16widthMicrometers011labelLengthG003gapiG004markiG00k6OffsetG011persistenceAcA0C4ModeOSg_s6UInt32VSgA3Ps5Int32VSgAA0C17PersistencePolicyOtcfc`
+
+符号种类：`swift.init`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Int32 | `s:s5Int32V` |
+| MediaMode | `s:10PrinterSDK9MediaModeO` |
+| MediaPersistencePolicy | `s:10PrinterSDK22MediaPersistencePolicyO` |
+| UInt32 | `s:s6UInt32V` |
+
+<a id="api-d4efdf90e7956710dd4a"></a>
+
+### MediaSettings.labelLengthMicrometers
+
+可选标签长度。
+
+```swift
+let labelLengthMicrometers: UInt32?
+```
+
+单位为微米；nil表示不设置，不支持的字段通过完成回调返回Unsupported。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13MediaSettingsV22labelLengthMicrometerss6UInt32VSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| UInt32 | `s:s6UInt32V` |
+
+<a id="api-89ff0770d5c642a64c7d"></a>
+
+### MediaSettings.markLengthMicrometers
+
+可选黑标长度。
+
+```swift
+let markLengthMicrometers: UInt32?
+```
+
+单位为微米；nil表示不设置，数值和设备支持在请求准入时校验。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13MediaSettingsV21markLengthMicrometerss6UInt32VSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| UInt32 | `s:s6UInt32V` |
+
+<a id="api-1d0f42021625e6395401"></a>
+
+### MediaSettings.markOffsetMicrometers
+
+可选黑标有符号偏移。
+
+```swift
+let markOffsetMicrometers: Int32?
+```
+
+单位为微米；nil表示不设置，不支持的字段通过完成回调返回Unsupported。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13MediaSettingsV21markOffsetMicrometerss5Int32VSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Int32 | `s:s5Int32V` |
+
+<a id="api-9ccf1c6c0048384c6459"></a>
+
+### MediaSettings.persistence
+
+介质持久化许可。
+
+```swift
+let persistence: MediaPersistencePolicy
+```
+
+默认volatileOnly；allowPersistent仅对profile明确支持的持久化行为授权，不保证硬件会接受持久配置。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13MediaSettingsV11persistenceAA0C17PersistencePolicyOvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| MediaPersistencePolicy | `s:10PrinterSDK22MediaPersistencePolicyO` |
+
+<a id="api-d1771b3bfb5d94837818"></a>
+
+### MediaSettings.tracking
+
+可选介质跟踪模式。
+
+```swift
+let tracking: MediaMode?
+```
+
+nil表示本请求不设置该字段；当前可用能力以profile声明和准入结果为准。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13MediaSettingsV8trackingAA0C4ModeOSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| MediaMode | `s:10PrinterSDK9MediaModeO` |
+
+<a id="api-d81e8df1c83adcbc3ccb"></a>
+
+### MediaSettings.widthMicrometers
+
+可选介质宽度。
+
+```swift
+let widthMicrometers: UInt32?
+```
+
+单位为微米；nil表示不设置，字段存在不代表当前profile已实现此能力。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13MediaSettingsV16widthMicrometerss6UInt32VSgvp`
 
 符号种类：`swift.property`；访问级别：`public`。
 
@@ -3818,950 +3074,6 @@ case requireReadback
 文档 ID：`apple:symbol:s:10PrinterSDK23MediaVerificationPolicyO15requireReadbackyA2CmF`
 
 符号种类：`swift.enum.case`；访问级别：`public`。
-
-<a id="api-ac14c812144bc8d503ff"></a>
-
-## MobilePrinter
-
-<a id="api-48451d5fee6a3c851247"></a>
-
-### MobilePrinter
-
-逐操作配置的打印机通信设备。
-
-```swift
-final class MobilePrinter
-```
-
-创建只需要BLE通信选项，不绑定打印Profile。打印、Raw、介质和定位共享设备唯一FIFO；结构化操作逐次提供配置。connect/disconnect/close会阻塞，应在后台执行；Manager提供异步生命周期。提交只表示接纳，成功最多为DATA_SENT。所有权由创建者或Manager管理；不自动重连、重放或续打。ABI3必须与同版原生库成套使用。 Swift 跨隔离访问采用 Sendable 契约，内部同步与原生存储生命周期保护保持；可变 App 状态须自行同步，阻塞 IO 仍应在后台执行。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C`
-
-符号种类：`swift.class`；访问级别：`public`。
-
-<a id="api-c6465a4526c29369267b"></a>
-
-### MobilePrinter.capabilities()
-
-读取聚合的本地能力与约束。
-
-```swift
-func capabilities() throws -> PrinterCapabilities
-```
-
-返回八项feature、四项constraint及geometry的不可变值，不执行IO、不探测或预留容量。软件实现、设备支持与证据独立；纯通信设备几何未知，不能从最近打印参数填充。设备关闭后抛1002。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C12capabilitiesAA0A12CapabilitiesVyKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| PrinterCapabilities | `s:10PrinterSDK0A12CapabilitiesV` |
-
-<a id="api-efb8cdaa74d4d828c4a7"></a>
-
-### MobilePrinter.close()
-
-阻塞并永久关闭此设备对象。
-
-```swift
-func close()
-```
-
-在应用工作线程调用。阻止后续设备访问，断开并中止未完成 IO，等待正在使用设备的调用退出后释放资源；并发重复关闭等待同一次关闭完成，重复调用安全。此方法不抛出错误，不能用于查询断开是否成功。关闭后的对象不能重新连接，需创建新对象；后续设备调用抛 1002。已有 `PrintOperation` 独立保存快照，仍可读终态并关闭。设备析构也执行关闭，因此应主动在合适的工作线程关闭以免最后一次引用释放阻塞 UI。已经发送的数据不会被撤回。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C5closeyyF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-<a id="api-48899b1c41f77aafe9a2"></a>
-
-### MobilePrinter.connect(timeoutMilliseconds:)
-
-阻塞建立选定外设的 BLE 通信路径。
-
-```swift
-func connect(timeoutMilliseconds: UInt32 = 5000) throws
-```
-
-`timeoutMilliseconds` 单位为毫秒，默认 `5000`，必须大于 0；零值抛 1001。必须在应用工作线程执行，不得占用 UI 或 CoreBluetooth 回调队列。已经连接时有效调用可直接成功，不重新打开传输；冲突的连接状态转换或已关闭设备抛 1002。蓝牙/权限/目标识别/特征不符合要求、超时或连接失败以 `PrinterSDKError` 返回（例如 1002、1004、2001、2002、2003）。成功只证明已建立可用通信路径，不证明纸张、机械状态或打印完成；不会重放此前中断的操作。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C7connect19timeoutMillisecondsys6UInt32V_tKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-9cd746227b15bcf2cc8d"></a>
-
-### MobilePrinter.connectionState()
-
-读取 SDK 本地缓存的连接状态。
-
-```swift
-func connectionState() throws -> ConnectionState
-```
-
-返回 `ConnectionState`，不进行蓝牙探测、不发送打印机 IO，也不进入打印队列；可观察正在连接或断开的状态。`.connected` 不证明此刻链路仍存活或打印机就绪，未被 IO 察觉的断线可能暂时仍显示已连接。设备已关闭时抛 1002；无法识别的底层状态抛 1000，其他读取错误作为 `PrinterSDKError` 返回。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C15connectionStateAA010ConnectionE0OyKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| ConnectionState | `s:10PrinterSDK15ConnectionStateO` |
-
-<a id="api-12982da98fa0af6781d0"></a>
-
-### MobilePrinter.constraint(_:)
-
-读取指定参数的标量约束。
-
-```swift
-func constraint(_ constraint: PrinterConstraint) throws -> ScalarConstraint
-```
-
-parameterId 使用 ScalarConstraint 标识；本地查询无 IO，不保证硬件支持。known=false 表示未知。设备关闭后抛 1002，其他原生错误按 PrinterSDKError 返回。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C10constraintyAA16ScalarConstraintVAA0aF0OKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| PrinterConstraint | `s:10PrinterSDK0A10ConstraintO` |
-| ScalarConstraint | `s:10PrinterSDK16ScalarConstraintV` |
-
-<a id="api-3c22bd2bb2a05a1bf9de"></a>
-
-### MobilePrinter.diagnostic()
-
-读取设备最新一条本地诊断。
-
-```swift
-func diagnostic() throws -> ErrorDiagnostic
-```
-
-不执行 IO，不清除记录；sequence=0 表示无记录。重连保留较早代次记录，展示前比较 generation。设备关闭后抛 1002；不替代本次 connect 的异常或 operation 的独立诊断。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C10diagnosticAA15ErrorDiagnosticVyKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| ErrorDiagnostic | `s:10PrinterSDK15ErrorDiagnosticV` |
-
-<a id="api-291abd150d7fdc40bbb7"></a>
-
-### MobilePrinter.disconnect()
-
-阻塞断开通信并使未完成工作结束。
-
-```swift
-func disconnect() throws
-```
-
-在应用工作线程调用。停止接纳工作，取消并中断进行中的 IO，等待相应工作退出；未完成操作会取得终态。重复断开是安全的，设备对象仍可通过后续显式 `connect` 使用。设备已经 `close` 后抛 1002，底层断开错误以 `PrinterSDKError` 表示。保留的操作对象仍能读取结果；断开不能撤回已发送字节，不自动重连或重放。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C10disconnectyyKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-<a id="api-b47b4b75be0a4bba31ab"></a>
-
-### MobilePrinter.feature(_:)
-
-读取所选配置下一个功能的实现与支持证据。
-
-```swift
-func feature(_ feature: PrinterFeature) throws -> FeatureSupport
-```
-
-`feature` 选择 `PrinterFeature`；返回不可变的 `FeatureSupport`。读取使用本地能力数据，不发送打印机 IO，不验证硬件或改变队列。区分 SDK 已实现、设备支持已知与证据来源：当前显式 BLE 配置的设备支持仍可未知，`isSupported == false` 不能一律理解为确定不支持。已关闭设备抛 1002，其他错误抛 `PrinterSDKError`。当前标准后端未实现状态查询和切纸。 无 Profile 的通信连接提供两种协议的 SDK 实现信息，deviceSupport 保持 UNKNOWN、evidence=0，不能用实现存在推断设备支持。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C7featureyAA14FeatureSupportVAA0aE0OKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| FeatureSupport | `s:10PrinterSDK14FeatureSupportV` |
-| PrinterFeature | `s:10PrinterSDK0A7FeatureO` |
-
-<a id="api-2ca3a7fe0ea7c8180c83"></a>
-
-### MobilePrinter.feedToNextLabel(profile:timeoutMilliseconds:)
-
-使用本次 CPCL 配置排入下一标签定位操作。
-
-```swift
-func feedToNextLabel(profile: CpclProfile, timeoutMilliseconds: UInt32 = 120000) throws -> PrintOperation
-```
-
-本次配置在接纳时按值复制，只属于这个队列条目，不绑定到连接、不记住最后一次配置，不改变连接的通信选项。可以在同一连接中连续排队不同协议或几何配置的操作，仍与 Raw 共用同一个 FIFO，不切换连接或自动重放。 `profile` 指定本次 CPCL 参数；`timeoutMilliseconds` 默认 120000，须大于 0，单位毫秒，覆盖排队和执行。调用者须先装入并配置合适的间隙或黑标介质；此操作不设置介质、不校准传感器、不读取纸张位置。返回需持有和关闭的 PrintOperation；零超时或无效配置为 1001，其他错误按 PrinterSDKError 报告，异步结果通过快照观察。成功 DATA_SENT 只证明定位命令已传输，不能证明物理定位完成。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C15feedToNextLabel7profile19timeoutMillisecondsAA14PrintOperationCAA11CpclProfileV_s6UInt32VtKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| CpclProfile | `s:10PrinterSDK11CpclProfileV` |
-| PrintOperation | `s:10PrinterSDK14PrintOperationC` |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-185a1b4f89b6fc167870"></a>
-
-### MobilePrinter.init(bleIdentifier:options:)
-
-创建不绑定打印配置的BLE通信设备。
-
-```swift
-convenience init(bleIdentifier: UUID, options: BLEOptions) throws
-```
-
-bleIdentifier是已选择且CoreBluetooth识别的外设UUID，options指定服务、写特征和流控。只创建本地通信设备，不扫描、连接、申请权限或发送IO。后续结构化操作逐次提供Profile，Raw无需Profile。要求完整ABI3/r1原生库，不匹配1006；创建失败按稳定错误码报告。调用方或Manager负责close，不能由创建推断硬件协议或几何。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C13bleIdentifier7optionsAC10Foundation4UUIDV_AA10BLEOptionsVtKcfc`
-
-符号种类：`swift.init`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| BLEOptions | `s:10PrinterSDK10BLEOptionsV` |
-| UUID | `s:10Foundation4UUIDV` |
-
-<a id="api-919dd545c263f56055dc"></a>
-
-### MobilePrinter.observeState(queue:_:)
-
-订阅合并的本地连接、工作和队列快照。
-
-```swift
-func observeState(queue: DispatchQueue = .main, _ callback: @escaping @Sendable (DeviceStateSnapshot) -> Void) throws -> ObservationSubscription
-```
-
-默认在主队列异步投递，可指定DispatchQueue。共享按需观察器读取本地快照，先交付当前值，再合并相同值；不保证短暂中间状态的完整历史，也不做硬件查询。须保留返回的状态Subscription；释放该token或显式cancel/close会停止监听，设备close也停止监听。不会取消打印，客户代码在SDK锁外执行。关闭设备后注册抛1002。 回调声明为 `@Sendable`，捕获的跨线程值须满足 Sendable 或适当隔离；UI 更新显式切回 MainActor。默认回调队列仍为主队列。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C12observeState5queue_AA23ObservationSubscriptionCSo012OS_dispatch_F0C_yAA06DeviceE8SnapshotVYbctKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| DeviceStateSnapshot | `s:10PrinterSDK19DeviceStateSnapshotV` |
-| DispatchQueue | `c:objc(cs)OS_dispatch_queue` |
-| ObservationSubscription | `s:10PrinterSDK23ObservationSubscriptionC` |
-| Void | `s:s4Voida` |
-
-<a id="api-2fc22b7e1d246d6d5cab"></a>
-
-### MobilePrinter.queryStatus(configuration:timeoutMilliseconds:)
-
-按本次协议和响应超时发起状态查询。
-
-```swift
-func queryStatus(configuration: StatusQueryConfiguration, timeoutMilliseconds: UInt32 = 5000) throws -> PrintOperation
-```
-
-configuration 指定本次协议与请求／响应预算，timeoutMilliseconds 默认 5000 毫秒，须大于 0，包含排队和执行。配置接纳时复制，不改变默认打印配置。当前标准后端同步抛 1004 UNSUPPORTED_OPERATION，零打印机 IO，硬件维持未知；未来受支持查询仍共用设备 FIFO，调用方持有并关闭 operation。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C11queryStatus13configuration19timeoutMillisecondsAA14PrintOperationCAA0E18QueryConfigurationV_s6UInt32VtKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| PrintOperation | `s:10PrinterSDK14PrintOperationC` |
-| StatusQueryConfiguration | `s:10PrinterSDK24StatusQueryConfigurationV` |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-fd3f05de96b59bf48f9a"></a>
-
-### MobilePrinter.resourceSnapshot()
-
-读取设备源载荷接纳限制和当前占用。
-
-```swift
-func resourceSnapshot() throws -> ResourceSnapshot
-```
-
-本地一致快照，不执行 IO，不预留空间；submit 决定实际接纳。设备关闭后抛 1002，原生资源或 ABI 错误按 PrinterSDKError 返回。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C16resourceSnapshotAA08ResourceE0VyKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| ResourceSnapshot | `s:10PrinterSDK16ResourceSnapshotV` |
-
-<a id="api-fb9517d11980d6aa0c3a"></a>
-
-### MobilePrinter.setMediaMode(_:profile:timeoutMilliseconds:)
-
-使用本次 CPCL 配置排入介质跟踪设置操作。
-
-```swift
-func setMediaMode(_ mode: MediaMode, profile: CpclProfile, timeoutMilliseconds: UInt32 = 120000) throws -> PrintOperation
-```
-
-本次配置在接纳时按值复制，只属于这个队列条目，不绑定到连接、不记住最后一次配置，不改变连接的通信选项。可以在同一连接中连续排队不同协议或几何配置的操作，仍与 Raw 共用同一个 FIFO，不切换连接或自动重放。 `mode` 为间隙、黑标或连续纸；`profile` 指定本次 CPCL 参数。`timeoutMilliseconds` 默认 120000，须大于 0，单位毫秒，覆盖排队和执行；零超时或无效配置以 1001 拒绝。操作不设置纸宽、纸长、间隙长度，不校准传感器或持久保存设置。返回需调用者持有并关闭的 PrintOperation，代表接纳；错误按 PrinterSDKError 报告，执行错误读取快照。成功 DATA_SENT 只证明设置字节已发送，不证明硬件已经应用或介质准备就绪。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C12setMediaMode_7profile19timeoutMillisecondsAA14PrintOperationCAA0eF0O_AA11CpclProfileVs6UInt32VtKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| CpclProfile | `s:10PrinterSDK11CpclProfileV` |
-| MediaMode | `s:10PrinterSDK9MediaModeO` |
-| PrintOperation | `s:10PrinterSDK14PrintOperationC` |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-0aebe7cd2c7ace7b6fa4"></a>
-
-### MobilePrinter.stateSnapshot()
-
-同步读取本地一致的设备状态。
-
-```swift
-func stateSnapshot() throws -> DeviceStateSnapshot
-```
-
-读取不调用传输回调、不发送打印机 IO、不入队也不等待打印完成。快照只用于展示和诊断，不作为提交前置条件；不得与设备销毁并发访问。 未连接也可读取；设备关闭后抛出 PrinterSDKError code 1002。当前硬件状态未知，不触发硬件刷新。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C13stateSnapshotAA011DeviceStateE0VyKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| DeviceStateSnapshot | `s:10PrinterSDK19DeviceStateSnapshotV` |
-
-<a id="api-770b811c49f042364b2d"></a>
-
-### MobilePrinter.submit(_:profile:timeoutMilliseconds:)
-
-提交不可变作业及本次打印配置。
-
-```swift
-func submit(_ job: PrintJob, profile: CpclProfile, timeoutMilliseconds: UInt32 = 120000) throws -> PrintOperation
-```
-
-标签作业配CpclProfile，小票配ReceiptProfile；配置仅属于该队列条目，不绑定连接。timeout默认120000ms且大于零，覆盖排队、准备和发送。成功仅表示接纳，共享原设备FIFO；返回PrintOperation供result/onComplete/cancel使用。输入job可在返回后释放，错误或不支持在IO前拒绝，不自动重放。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C6submit_7profile19timeoutMillisecondsAA14PrintOperationCAA0H3JobC_AA11CpclProfileVs6UInt32VtKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| CpclProfile | `s:10PrinterSDK11CpclProfileV` |
-| PrintJob | `s:10PrinterSDK8PrintJobC` |
-| PrintOperation | `s:10PrinterSDK14PrintOperationC` |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-3d863085cc14d9b7c534"></a>
-
-### MobilePrinter.submit(_:profile:timeoutMilliseconds:)
-
-提交不可变作业及本次打印配置。
-
-```swift
-func submit(_ job: PrintJob, profile: ReceiptProfile, timeoutMilliseconds: UInt32 = 120000) throws -> PrintOperation
-```
-
-标签作业配CpclProfile，小票配ReceiptProfile；配置仅属于该队列条目，不绑定连接。timeout默认120000ms且大于零，覆盖排队、准备和发送。成功仅表示接纳，共享原设备FIFO；返回PrintOperation供result/onComplete/cancel使用。输入job可在返回后释放，错误或不支持在IO前拒绝，不自动重放。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C6submit_7profile19timeoutMillisecondsAA14PrintOperationCAA0H3JobC_AA14ReceiptProfileVs6UInt32VtKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| PrintJob | `s:10PrinterSDK8PrintJobC` |
-| PrintOperation | `s:10PrinterSDK14PrintOperationC` |
-| ReceiptProfile | `s:10PrinterSDK14ReceiptProfileV` |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-5bd1501b8ec8d282d467"></a>
-
-### MobilePrinter.submitGray8(_:width:height:profile:copies:trailingBlankDots:canvasWidthDots:originXDots:form:timeoutMilliseconds:)
-
-使用本次 CPCL 配置提交完整 Gray8 标签。
-
-```swift
-func submitGray8(_ pixels: Data, width: UInt32, height: UInt32, profile: CpclProfile, copies: UInt32 = 1, trailingBlankDots: UInt32 = 0, canvasWidthDots: UInt32? = nil, originXDots: UInt32? = nil, form: Bool? = nil, timeoutMilliseconds: UInt32 = 120000) throws -> PrintOperation
-```
-
-本次配置在接纳时按值复制，只属于这个队列条目，不绑定到连接、不记住最后一次配置，不改变连接的通信选项。可以在同一连接中连续排队不同协议或几何配置的操作，仍与 Raw 共用同一个 FIFO，不切换连接或自动重放。 `pixels` 为逐行紧密排列、每像素 1 字节的灰度数据（0 黑、255 白），长度必须恰为 `width * height`；宽高均以点为单位且大于 0。当前此入口以阈值 128 二值化，不自动缩放或裁剪。`copies` 默认 1，范围 1…100；`trailingBlankDots` 默认 0，增加每张标签声明高度。`originXDots` 默认 `nil`，取 `CpclProfile.xOffsetDots`；须小于配置打印宽度。`canvasWidthDots` 默认 `nil`，取配置打印宽度减本次横向原点；图像补齐到整字节的横向范围及总高度必须落在标签和设备边界内。`form` 默认 `nil`，取 profile 默认值；true 请求下一标签起点结束，false 请求内容结束，仅保存在本次作业中。`timeoutMilliseconds` 默认 `120000`，必须大于 0，是入队后包含排队、准备和发送的共享总预算，单位毫秒，不按份数重新计时。
-
-本次 `profile` 选择 CPCL 协议，只属于本次操作，不绑定连接。参数或几何无效抛 1001；单幅源图超过 16 MiB、设备未终态源载荷合计超过 64 MiB、每设备未终态操作超过 64 个或资源分配失败可抛 1008；这些是 SDK 接纳限制，不是硬件内存承诺。输入在提交过程中复制，返回后调用方可释放原 `Data`。成功返回一个需调用方持有和关闭的 `PrintOperation`，只表示已接纳；运行期失败、超时、取消通过其快照观察。打印机 IO 在设备队列执行，成功最多报告 `DATA_SENT`，不确认机械打印完成。为避免在 UI 上承担图像校验和复制成本，应在应用工作线程提交。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C11submitGray8_5width6height7profile6copies17trailingBlankDots011canvasWidthL011originXDots4form19timeoutMillisecondsAA14PrintOperationC10Foundation4DataV_s6UInt32VAtA11CpclProfileVA3TSgAWSbSgATtKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Bool | `s:Sb` |
-| CpclProfile | `s:10PrinterSDK11CpclProfileV` |
-| Data | `s:10Foundation4DataV` |
-| PrintOperation | `s:10PrinterSDK14PrintOperationC` |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-27bebb908c0a75091108"></a>
-
-### MobilePrinter.submitRaw(_:copies:timeoutMilliseconds:)
-
-在设备原有串行队列中原样发送一个 Raw 载荷。
-
-```swift
-func submitRaw(_ bytes: Data, copies: UInt32 = 1, timeoutMilliseconds: UInt32 = 120000) throws -> PrintOperation
-```
-
-`bytes` 必须非空，最多 1 MiB；超出载荷限制抛 1008。`copies` 默认 1，范围 1…100；各份在同一个队列条目内发送，其他操作不会插入份与份之间。`timeoutMilliseconds` 默认 `120000`，必须大于 0，单位毫秒；全部份数共享包含排队的总超时与取消状态。空载荷、份数或超时无效抛 1001，未连接或已关闭时抛状态/传输错误。源载荷复制一次，份数不扩增接纳预算；设备未终态源载荷合计上限 64 MiB，每设备最多 64 个未终态操作，超限抛 1008。
-
-载荷不经过协议封装，不应用标签原点、FORM、图像处理或介质推断；调用方承担命令与目标设备匹配的责任。返回 `PrintOperation` 只表示接纳，后续通过快照查看结果。取消、断线或超时停止后续字节，已发送数据不可撤回，不自动重放剩余份数。成功仍仅 `DATA_SENT`，操作对象由调用者持有并显式关闭。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C9submitRaw_6copies19timeoutMillisecondsAA14PrintOperationC10Foundation4DataV_s6UInt32VAMtKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Data | `s:10Foundation4DataV` |
-| PrintOperation | `s:10PrinterSDK14PrintOperationC` |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-a9afaaea8c1291ea6962"></a>
-
-### MobilePrinter.submitReceiptGray8(_:width:height:profile:copies:maxTotalLengthDots:trailingBlankDots:cut:finishScope:timeoutMilliseconds:)
-
-使用本次 ESC/POS 配置提交完整 Gray8 小票。
-
-```swift
-func submitReceiptGray8(_ pixels: Data, width: UInt32, height: UInt32, profile: ReceiptProfile, copies: UInt32 = 1, maxTotalLengthDots: UInt32, trailingBlankDots: UInt32 = 0, cut: CutMode = .none, finishScope: FinishScope = .eachCopy, timeoutMilliseconds: UInt32 = 120000) throws -> PrintOperation
-```
-
-本次配置在接纳时按值复制，只属于这个队列条目，不绑定到连接、不记住最后一次配置，不改变连接的通信选项。可以在同一连接中连续排队不同协议或几何配置的操作，仍与 Raw 共用同一个 FIFO，不切换连接或自动重放。 `pixels` 为紧密排列 Gray8（0 黑、255 白），长度恰为正数 `width * height`，宽高单位为点；当前使用阈值 128，不自动缩放或裁剪。点宽不得超过配置版心。`copies` 默认 1、范围 1…100；`maxTotalLengthDots` 为调用方必填的正数整单长度预算，包含全部份数及收尾留白，不代表设备单页长度能力。`trailingBlankDots` 默认 0；`cut` 默认 `.none`；`finishScope` 默认 `.eachCopy`；当前标准 ESC/POS 后端仅支持此值，`.endOfJob` 即使只有一份也会在 IO 前以 1004 拒绝。整单长度为图像高度乘份数，加按 scope 执行的尾部留白。当前标准 ESC/POS 后端要求不切纸，切纸策略不能静默丢弃；不支持的结束策略在首次 IO 前以 1004 拒绝。`timeoutMilliseconds` 默认 `120000`，必须大于 0，单位毫秒，涵盖排队、准备和所有份数的发送。
-
-本次 `profile` 选择 ESC/POS 协议，只属于本次操作，不绑定连接；参数、长度预算或几何无效抛 1001。单幅源图最多 16 MiB，设备未终态源载荷合计最多 64 MiB，每设备最多 64 个未终态操作；资源或接纳超限可抛 1008。提交复制像素，返回后原 `Data` 可释放。成功返回的 `PrintOperation` 表示入队；后续错误、取消和终态由快照观察，调用者负责持有和关闭。不在调用线程等待 IO 完成，但图像校验和复制应放在应用工作线程。成功只证明数据发送，不能断言已出纸或已切纸。
-
-文档 ID：`apple:symbol:s:10PrinterSDK06MobileA0C18submitReceiptGray8_5width6height7profile6copies18maxTotalLengthDots013trailingBlankN03cut11finishScope19timeoutMillisecondsAA14PrintOperationC10Foundation4DataV_s6UInt32VAtA0E7ProfileVA3tA7CutModeOAA06FinishS0OATtKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| CutMode | `s:10PrinterSDK7CutModeO` |
-| Data | `s:10Foundation4DataV` |
-| FinishScope | `s:10PrinterSDK11FinishScopeO` |
-| PrintOperation | `s:10PrinterSDK14PrintOperationC` |
-| ReceiptProfile | `s:10PrinterSDK14ReceiptProfileV` |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-b2adb08956dca46c7ae5"></a>
-
-## ObservationSubscription
-
-<a id="api-5a52c794ca552950bd7d"></a>
-
-### ObservationSubscription
-
-可显式注销的通知所有权。
-
-```swift
-final class ObservationSubscription
-```
-
-cancel与close等价且幂等，只停止通知，不调用operation.cancel或关闭设备。已开始回调不可撤回；Swift状态订阅需要持有token，完成订阅不因丢弃token自动注销。 Swift 跨隔离访问采用 Sendable 契约，内部同步与原生存储生命周期保护保持；可变 App 状态须自行同步，阻塞 IO 仍应在后台执行。
-
-文档 ID：`apple:symbol:s:10PrinterSDK23ObservationSubscriptionC`
-
-符号种类：`swift.class`；访问级别：`public`。
-
-<a id="api-f7d2d4e41ed5ac75acfa"></a>
-
-### ObservationSubscription.cancel()
-
-停止本订阅的后续通知。
-
-```swift
-func cancel()
-```
-
-幂等，未开始的排队回调会被有效性检查抑制，已经开始的回调不可撤回。不取消打印或共享连接；停止打印需显式PrintOperation.cancel。
-
-文档 ID：`apple:symbol:s:10PrinterSDK23ObservationSubscriptionC6cancelyyF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-<a id="api-025aac6a3651723a311d"></a>
-
-### ObservationSubscription.close()
-
-停止本订阅的后续通知。
-
-```swift
-func close()
-```
-
-幂等，未开始的排队回调会被有效性检查抑制，已经开始的回调不可撤回。不取消打印或共享连接；停止打印需显式PrintOperation.cancel。
-
-文档 ID：`apple:symbol:s:10PrinterSDK23ObservationSubscriptionC5closeyyF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-<a id="api-afec0bb5086d128fee42"></a>
-
-## OperationResult
-
-<a id="api-66c1b85669cdbd1b3afa"></a>
-
-### OperationResult
-
-一次终态的不可变完整结果。
-
-```swift
-struct OperationResult
-```
-
-包含最终snapshot、诊断和可选硬件status；缓存不保留作业像素，独立于设备和native句柄存活。成功DATA_SENT仍不确认机械完成。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15OperationResultV`
-
-符号种类：`swift.struct`；访问级别：`public`。
-
-<a id="api-8e580bcd0dc2bfda8d39"></a>
-
-### OperationResult.!=(_:_:)
-
-编译器提供的值不等比较。
-
-```swift
-static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool
-```
-
-按该值类型的Equatable语义比较，返回布尔值，不执行设备IO。比较相同状态或结果不代表设备当前在线或机械打印完成。
-
-文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK15OperationResultV`
-
-符号种类：`swift.func.op`；访问级别：`public`。
-
-这是编译器为当前类型带入的协议扩展／合成公共成员。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"Swift","typeKind":"swift.protocol"}
-```
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Bool | `s:Sb` |
-
-<a id="api-b286ead8fdb6c5b220e3"></a>
-
-### OperationResult.diagnostic
-
-该操作的有界终态诊断。
-
-```swift
-let diagnostic: ErrorDiagnostic
-```
-
-稳定错误码为业务依据，nativeCode/domain仅排障；成功记录code=0。与设备最新诊断分离，可独立保存。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15OperationResultV10diagnosticAA15ErrorDiagnosticVvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| ErrorDiagnostic | `s:10PrinterSDK15ErrorDiagnosticV` |
-
-<a id="api-3add52f47062106479c9"></a>
-
-### OperationResult.snapshot
-
-最终操作快照。
-
-```swift
-let snapshot: OperationSnapshot
-```
-
-state必为COMPLETED/FAILED/CANCELLED；稳定errorCode、计数证据、副作用及completion均来自同一终态，不是状态轮询猜测。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15OperationResultV8snapshotAA0C8SnapshotVvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| OperationSnapshot | `s:10PrinterSDK17OperationSnapshotV` |
-
-<a id="api-0f5810e7fef4946d3f6e"></a>
-
-### OperationResult.status
-
-仅有有效响应时存在的硬件结果。
-
-```swift
-let status: HardwareStatusResult?
-```
-
-nil表示没有有效硬件状态响应；knownConditions决定哪些位可解释，未出现的位不自动表示正常。当前未验证协议保持nil。
-
-文档 ID：`apple:symbol:s:10PrinterSDK15OperationResultV6statusAA014HardwareStatusD0VSgvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| HardwareStatusResult | `s:10PrinterSDK20HardwareStatusResultV` |
-
-<a id="api-57bb815c8787c72b8ed3"></a>
-
-## OperationSnapshot
-
-<a id="api-d85fa2f33bb0f7379bb8"></a>
-
-### OperationSnapshot
-
-操作在某一时刻的不可变结果和进度值。
-
-```swift
-struct OperationSnapshot
-```
-
-由 `PrintOperation.snapshot` 返回，无公开初始化入口。值不持有设备资源，设备或操作关闭后已取得值仍可读；新进展需要再次获取快照。数值状态、完成级别、字节精确性和副作用必须组合解释，不以已发送数或传输完成推断机械打印完成。
-
-文档 ID：`apple:symbol:s:10PrinterSDK17OperationSnapshotV`
-
-符号种类：`swift.struct`；访问级别：`public`。
-
-<a id="api-95b233c39f4d764f9d65"></a>
-
-### OperationSnapshot.!=(_:_:)
-
-编译器提供的值不等比较。
-
-```swift
-static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool
-```
-
-按该值类型的Equatable语义比较，返回布尔值，不执行设备IO。比较相同状态或结果不代表设备当前在线或机械打印完成。
-
-文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK17OperationSnapshotV`
-
-符号种类：`swift.func.op`；访问级别：`public`。
-
-这是编译器为当前类型带入的协议扩展／合成公共成员。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"Swift","typeKind":"swift.protocol"}
-```
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Bool | `s:Sb` |
-
-<a id="api-7cd2699839d9615581aa"></a>
-
-### OperationSnapshot.bytesSent
-
-截至快照已观察到的传输接受字节数。
-
-```swift
-let bytesSent: UInt64
-```
-
-单位字节，包含操作实际发送的协议控制和打印数据，不能按源像素数直接换算进度。`bytesSentExact == false` 时该数只是已知下界，可能有已被平台接受但尚未确证的字节；0 不总是无副作用证明。该统计不表示机械输出长度。
-
-文档 ID：`apple:symbol:s:10PrinterSDK17OperationSnapshotV9bytesSents6UInt64Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
-
-<a id="api-58649d01668b55c18eeb"></a>
-
-### OperationSnapshot.bytesSentExact
-
-已发送字节统计是否有精确计数证据。
-
-```swift
-let bytesSentExact: Bool
-```
-
-true 表示本快照的 `bytesSent` 是精确统计；false 表示保守下界。发送中的平台回调可能尚未返回，CoreBluetooth 失败也未必能报告全部接受量，因此不能从数值大小自行补充精确性。即使精确，也只衡量传输接受，不确认纸面。
-
-文档 ID：`apple:symbol:s:10PrinterSDK17OperationSnapshotV14bytesSentExactSbvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Bool | `s:Sb` |
-
-<a id="api-c72438bbe74273844c80"></a>
-
-### OperationSnapshot.bytesTotal
-
-已知时的总发送字节数。
-
-```swift
-let bytesTotal: UInt64?
-```
-
-单位字节；未知时为 `nil`，不要替换成确定的 0。当前流式处理一般在具有精确证据的成功终态才知道总数；运行中、失败或证据不足时可为 nil。只有已知且合适时才计算比例，不能用进度百分比断言机械打印完成。
-
-文档 ID：`apple:symbol:s:10PrinterSDK17OperationSnapshotV10bytesTotals6UInt64VSgvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
-
-<a id="api-9fdb78619f93f77f3fbd"></a>
-
-### OperationSnapshot.completion
-
-成功操作达到的完成证据级别。
-
-```swift
-let completion: UInt32
-```
-
-数值 0 无完成证据，1 `DATA_SENT`，2 `DEVICE_CONFIRMED`。当前标准 CPCL/ESC/POS 发送成功仅为 1；运行中、失败或取消不带完成级别。1 只表示所需字节已交付传输路径，不能推断纸面、走纸或设置应用结果；保留值 2 不表示当前后端已实现设备确认。
-
-文档 ID：`apple:symbol:s:10PrinterSDK17OperationSnapshotV10completions6UInt32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-5c1420f167d1273e0a2e"></a>
-
-### OperationSnapshot.errorCode
-
-操作运行期结果的稳定错误码。
-
-```swift
-let errorCode: Int32
-```
-
-0 表示该快照没有记录错误，并不能单独证明已经成功完成。失败或取消时查看对应 SDK 数值，例如取消 1005、超时 2001、连接丢失 2002；应结合 `state` 和 `isTerminal`。设备关闭后仍可通过持有的操作读到终态错误，不自动重试或重放。
-
-文档 ID：`apple:symbol:s:10PrinterSDK17OperationSnapshotV9errorCodes5Int32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Int32 | `s:s5Int32V` |
-
-<a id="api-4f35dec662d0fcc4e1ee"></a>
-
-### OperationSnapshot.id
-
-该快照所属的操作标识符。
-
-```swift
-let id: UInt64
-```
-
-与对应 `PrintOperation.id` 一致，是设备内的 `UInt64` 标识。值随快照保存，读取不访问设备；不可用作跨设备、跨运行会话的全局唯一身份。
-
-文档 ID：`apple:symbol:s:10PrinterSDK17OperationSnapshotV2ids6UInt64Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
-
-<a id="api-5895611bc88f582dc7e9"></a>
-
-### OperationSnapshot.isTerminal
-
-该快照是否属于终态。
-
-```swift
-var isTerminal: Bool { get }
-```
-
-当前计算为 `state >= 4`；当前终态为成功完成 4、失败 5、取消 6。true 不表示成功，必须再检查状态和错误码。值只是这次快照的观察，调用本属性不阻塞、不取消、不释放操作对象。
-
-文档 ID：`apple:symbol:s:10PrinterSDK17OperationSnapshotV10isTerminalSbvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Bool | `s:Sb` |
-
-<a id="api-2d62800506ccab82a1fb"></a>
-
-### OperationSnapshot.kind
-
-操作类型的底层数值。
-
-```swift
-let kind: UInt32
-```
-
-当前数值：1 打印，2 状态查询，3 介质设置，4 Raw，5 下一标签定位。当前标准后端拒绝状态查询，所以保留该编号不表示已有状态查询实现。未知未来值应保留并作通用展示，不猜测行为。
-
-文档 ID：`apple:symbol:s:10PrinterSDK17OperationSnapshotV4kinds6UInt32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-2ffc75161da35775effb"></a>
-
-### OperationSnapshot.mediaBasis
-
-作业介质条件判断所使用的证据数值。
-
-```swift
-let mediaBasis: UInt32
-```
-
-0 未使用介质依据，1 同一连接中最近完整发送的设置，2 设备读回。最近发送只证明传输成功，不能提升为已应用或读回；当前 Swift 简化提交入口不暴露介质条件参数，通常为 0，当前标准后端也不提供设备读回。该字段不证明纸张已安装或定位正确。
-
-文档 ID：`apple:symbol:s:10PrinterSDK17OperationSnapshotV10mediaBasiss6UInt32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-09583e05ff22ba20e09a"></a>
-
-### OperationSnapshot.sideEffectsPossible
-
-是否可能已对打印机产生副作用。
-
-```swift
-let sideEffectsPossible: Bool
-```
-
-保守标记：写入尝试或交付不明确后可能为 true，不要求 `bytesSent > 0`。结合错误、取消和字节证据决定人工恢复；true 时不可盲目重试或重放。false 也不是连接存活、设备就绪或未来重试必然安全的证明。
-
-文档 ID：`apple:symbol:s:10PrinterSDK17OperationSnapshotV19sideEffectsPossibleSbvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Bool | `s:Sb` |
-
-<a id="api-0970649d86ed8992279c"></a>
-
-### OperationSnapshot.state
-
-操作执行状态的底层数值。
-
-```swift
-let state: UInt32
-```
-
-当前数值：0 排队，1 准备，2 发送，4 成功完成，5 失败，6 取消；当前没有值 3 的公开状态。以 `isTerminal` 判断是否结束，再查看 `completion`、`errorCode` 和副作用字段。终态成功不等于设备已机械打印完成。
-
-文档 ID：`apple:symbol:s:10PrinterSDK17OperationSnapshotV5states6UInt32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
 
 <a id="api-145004af19a837676c99"></a>
 
@@ -4949,80 +3261,129 @@ case rgba32
 
 符号种类：`swift.enum.case`；访问级别：`public`。
 
-<a id="api-853bae839e6f8b53cd97"></a>
+<a id="api-6bb193bc6a8b988482be"></a>
 
-## PrintJob
+## Pixels
 
-<a id="api-1ed5d1eb45a8ca964c75"></a>
+<a id="api-966c9a14c6177a1a4168"></a>
 
-### PrintJob
+### Pixels
 
-保留共享图像存储的不可变作业。
+原始像素及图像处理参数。
 
 ```swift
-final class PrintJob
+final class Pixels
 ```
 
-由Builder.build创建元数据快照；之后修改builder不影响已构建job，submit保留全部所需存储。ARC析构释放公共job句柄，不取消已入队打印；每作业逻辑图像上限32MiB。 Swift 跨隔离访问采用 Sendable 契约，内部同步与原生存储生命周期保护保持；可变 App 状态须自行同步，阻塞 IO 仍应在后台执行。
+保存只读Data与尺寸、像素格式、二值化和缩放设置；编码图片解码由应用准备函数负责。同一Pixels对象在多个元素中复用时只进行一次native导入。
 
-文档 ID：`apple:symbol:s:10PrinterSDK8PrintJobC`
+文档 ID：`apple:symbol:s:10PrinterSDK6PixelsC`
 
 符号种类：`swift.class`；访问级别：`public`。
 
-<a id="api-af29c8d159c71ce634fe"></a>
+<a id="api-5a0f23a2779b0cc774b3"></a>
 
-### PrintJob.Builder
+### Pixels.algorithm
 
-平台层的类型化作业构建器。
-
-```swift
-final class Builder
-```
-
-选择标签或小票选项后收集图像/空白/finish/media，build一次创建不可变native descriptor。构建器保留引用图像；build不复制像素，不执行打印机IO。后续变更只影响下一次build。 Swift 跨隔离访问采用 Sendable 契约，内部同步与原生存储生命周期保护保持；可变 App 状态须自行同步，阻塞 IO 仍应在后台执行。
-
-文档 ID：`apple:symbol:s:10PrinterSDK8PrintJobC7BuilderC`
-
-符号种类：`swift.class`；访问级别：`public`。
-
-<a id="api-ae88c1f5f6e151e7410c"></a>
-
-### PrintJob.Builder.addImage(_:x:y:)
-
-向标签追加图像引用和坐标。
+二值化算法。
 
 ```swift
-func addImage(_ image: PrinterImage, x: Int32 = 0, y: Int32 = 0) throws
+let algorithm: ImageAlgorithm
 ```
 
-仅标签可用，否则1004；不复制像素。坐标非负、图像须在画布内，当前CPCL只支持x=0和纵向顺序不重叠，build/submit检查边界。
+选择阈值、Floyd-Steinberg或Bayer算法；图像处理独立于协议编码。
 
-文档 ID：`apple:symbol:s:10PrinterSDK8PrintJobC7BuilderC8addImage_1x1yyAA0aG0C_s5Int32VALtKF`
+文档 ID：`apple:symbol:s:10PrinterSDK6PixelsC9algorithmAA14ImageAlgorithmOvp`
 
-符号种类：`swift.method`；访问级别：`public`。
+符号种类：`swift.property`；访问级别：`public`。
 
 声明引用的编译器标识：
 
 | 名称 | precise identifier |
 | --- | --- |
-| Int32 | `s:s5Int32V` |
-| PrinterImage | `s:10PrinterSDK0A5ImageC` |
+| ImageAlgorithm | `s:10PrinterSDK14ImageAlgorithmO` |
 
-<a id="api-52fccbe72de9a1c8e86e"></a>
+<a id="api-e38f8659593948041741"></a>
 
-### PrintJob.Builder.appendBlank(dots:)
+### Pixels.data
 
-顺序追加小票空白。
+只读原始像素数据。
 
 ```swift
-func appendBlank(dots: UInt32) throws
+let data: Data
 ```
 
-仅小票可用，否则1004；dots必须为正，计入整单长度，build检查。
+内容格式由format决定；不支持直接传PNG/JPEG编码数据，解码在应用准备函数完成。
 
-文档 ID：`apple:symbol:s:10PrinterSDK8PrintJobC7BuilderC11appendBlank4dotsys6UInt32V_tKF`
+文档 ID：`apple:symbol:s:10PrinterSDK6PixelsC4data10Foundation4DataVvp`
 
-符号种类：`swift.method`；访问级别：`public`。
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Data | `s:10Foundation4DataV` |
+
+<a id="api-4c755b350085ddeadeff"></a>
+
+### Pixels.fitWidth
+
+是否按目标宽度适配。
+
+```swift
+let fitWidth: Bool
+```
+
+与targetWidthDots一起传给图像处理层，缩放独立于设备传输分块。
+
+文档 ID：`apple:symbol:s:10PrinterSDK6PixelsC8fitWidthSbvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Bool | `s:Sb` |
+
+<a id="api-a17443a4ac8d81afc77a"></a>
+
+### Pixels.format
+
+原始像素格式。
+
+```swift
+let format: PixelFormat
+```
+
+选择GRAY8、RGB24或RGBA32；输入数据长度与宽高须一致。
+
+文档 ID：`apple:symbol:s:10PrinterSDK6PixelsC6formatAA11PixelFormatOvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| PixelFormat | `s:10PrinterSDK11PixelFormatO` |
+
+<a id="api-809721b4c966cc0a9c6d"></a>
+
+### Pixels.height
+
+原图高度。
+
+```swift
+let height: UInt32
+```
+
+单位为像素；大图按SDK图像/协议流水线分块处理，不要求完整最终打印缓冲区。
+
+文档 ID：`apple:symbol:s:10PrinterSDK6PixelsC6heights6UInt32Vvp`
+
+符号种类：`swift.property`；访问级别：`public`。
 
 声明引用的编译器标识：
 
@@ -5030,63 +3391,153 @@ func appendBlank(dots: UInt32) throws
 | --- | --- |
 | UInt32 | `s:s6UInt32V` |
 
-<a id="api-d84d9e1ad3aaa63eaedd"></a>
+<a id="api-234f32a4f3a1dc0cbd7a"></a>
 
-### PrintJob.Builder.appendImage(_:)
+### Pixels.init(data:width:height:format:algorithm:threshold:invert:fitWidth:targetWidthDots:)
 
-顺序追加小票图像引用。
+构造Pixels只读数据。
 
 ```swift
-func appendImage(_ image: PrinterImage) throws
+init(data: Data, width: UInt32, height: UInt32, format: PixelFormat = .gray8, algorithm: ImageAlgorithm = .threshold, threshold: UInt32 = 128, invert: Bool = false, fitWidth: Bool = false, targetWidthDots: UInt32 = 0)
 ```
 
-仅小票可用，否则1004；坐标固定零，native按顺序排版，不复制像素。
+保存只读Data与尺寸、像素格式、二值化和缩放设置；编码图片解码由应用准备函数负责。同一Pixels对象在多个元素中复用时只进行一次native导入。
 
-文档 ID：`apple:symbol:s:10PrinterSDK8PrintJobC7BuilderC11appendImageyyAA0aG0CKF`
+文档 ID：`apple:symbol:s:10PrinterSDK6PixelsC4data5width6height6format9algorithm9threshold6invert8fitWidth06targetL4DotsAC10Foundation4DataV_s6UInt32VAqA11PixelFormatOAA14ImageAlgorithmOAQS2bAQtcfc`
 
-符号种类：`swift.method`；访问级别：`public`。
+符号种类：`swift.init`；访问级别：`public`。
 
 声明引用的编译器标识：
 
 | 名称 | precise identifier |
 | --- | --- |
-| PrinterImage | `s:10PrinterSDK0A5ImageC` |
+| Bool | `s:Sb` |
+| Data | `s:10Foundation4DataV` |
+| ImageAlgorithm | `s:10PrinterSDK14ImageAlgorithmO` |
+| PixelFormat | `s:10PrinterSDK11PixelFormatO` |
+| UInt32 | `s:s6UInt32V` |
 
-<a id="api-b45cb97a6d27d54ec716"></a>
+<a id="api-8cea43daf445bd9790ad"></a>
 
-### PrintJob.Builder.build()
+### Pixels.invert
 
-生成不可变作业快照。
+是否反转输出黑白。
 
 ```swift
-func build() throws -> PrintJob
+let invert: Bool
 ```
 
-校验typed选项和最多1024项，至少一幅图；保留image存储无像素复制，每次引用计入32MiB逻辑预算。失败抛1001/1004/1008，不产生打印工作；原builder仍可修改，已建job不变。
+只改变图像处理配置，不修改输入像素对象。
 
-文档 ID：`apple:symbol:s:10PrinterSDK8PrintJobC7BuilderC5buildACyKF`
+文档 ID：`apple:symbol:s:10PrinterSDK6PixelsC6invertSbvp`
 
-符号种类：`swift.method`；访问级别：`public`。
+符号种类：`swift.property`；访问级别：`public`。
 
 声明引用的编译器标识：
 
 | 名称 | precise identifier |
 | --- | --- |
-| PrintJob | `s:10PrinterSDK8PrintJobC` |
+| Bool | `s:Sb` |
 
-<a id="api-404dcf6454492301bd4b"></a>
+<a id="api-1a206c7916dfe62e37c3"></a>
 
-### PrintJob.Builder.init(label:)
+### Pixels.targetWidthDots
 
-创建标签构建器。
+缩放目标宽度。
 
 ```swift
-init(label: LabelJobOptions)
+let targetWidthDots: UInt32
 ```
 
-保存LabelJobOptions，不连接或执行IO；图片位置通过addImage给出。
+单位为打印dots；默认0表示不提供显式目标宽度，实际行为遵循图像适配配置。
 
-文档 ID：`apple:symbol:s:10PrinterSDK8PrintJobC7BuilderC5labelAeA05LabelD7OptionsV_tcfc`
+文档 ID：`apple:symbol:s:10PrinterSDK6PixelsC15targetWidthDotss6UInt32Vvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| UInt32 | `s:s6UInt32V` |
+
+<a id="api-0ffc27772418fb164d4f"></a>
+
+### Pixels.threshold
+
+二值化阈值。
+
+```swift
+let threshold: UInt32
+```
+
+有效范围按图像契约校验，默认128；不改变原始像素格式。
+
+文档 ID：`apple:symbol:s:10PrinterSDK6PixelsC9thresholds6UInt32Vvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| UInt32 | `s:s6UInt32V` |
+
+<a id="api-eb98831d97555eb1fdf6"></a>
+
+### Pixels.width
+
+原图宽度。
+
+```swift
+let width: UInt32
+```
+
+单位为像素，与height和format共同确定输入数据布局；不等同于传输分块大小。
+
+文档 ID：`apple:symbol:s:10PrinterSDK6PixelsC5widths6UInt32Vvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| UInt32 | `s:s6UInt32V` |
+
+<a id="api-1c60054e629e6db79dd6"></a>
+
+## PreparedPrint
+
+<a id="api-398d9a825d01f1959605"></a>
+
+### PreparedPrint
+
+准备阶段产生的不可变打印描述。
+
+```swift
+struct PreparedPrint
+```
+
+描述标签或小票布局、图片/空白元素及可选介质要求；不持有native任务或图像句柄。Manager在后台导入像素并构建native job，重复引用同一像素对象只导入一次。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13PreparedPrintV`
+
+符号种类：`swift.struct`；访问级别：`public`。
+
+<a id="api-427f21a7cf1e5d6153e0"></a>
+
+### PreparedPrint.init(label:elements:mediaRequirement:)
+
+构造PreparedPrint只读数据。
+
+```swift
+init(label: LabelJobOptions, elements: [PrintElement], mediaRequirement: MediaRequirement? = nil)
+```
+
+描述标签或小票布局、图片/空白元素及可选介质要求；不持有native任务或图像句柄。Manager在后台导入像素并构建native job，重复引用同一像素对象只导入一次。
+
+文档 ID：`apple:symbol:s:10PrinterSDK13PreparedPrintV5label8elements16mediaRequirementAcA15LabelJobOptionsV_SayAA0D7ElementOGAA05MediaH0VSgtcfc`
 
 符号种类：`swift.init`；访问级别：`public`。
 
@@ -5095,20 +3546,22 @@ init(label: LabelJobOptions)
 | 名称 | precise identifier |
 | --- | --- |
 | LabelJobOptions | `s:10PrinterSDK15LabelJobOptionsV` |
+| MediaRequirement | `s:10PrinterSDK16MediaRequirementV` |
+| PrintElement | `s:10PrinterSDK12PrintElementO` |
 
-<a id="api-4df0a06f03062729ef9d"></a>
+<a id="api-d4e2d8ad30b36f605176"></a>
 
-### PrintJob.Builder.init(receipt:)
+### PreparedPrint.init(receipt:elements:finish:mediaRequirement:)
 
-创建小票构建器。
+构造PreparedPrint只读数据。
 
 ```swift
-init(receipt: ReceiptJobOptions)
+init(receipt: ReceiptJobOptions, elements: [PrintElement], finish: ReceiptFinishOptions = ReceiptFinishOptions(), mediaRequirement: MediaRequirement? = nil)
 ```
 
-保存ReceiptJobOptions，不执行IO；通过appendImage/appendBlank顺序追加。
+描述标签或小票布局、图片/空白元素及可选介质要求；不持有native任务或图像句柄。Manager在后台导入像素并构建native job，重复引用同一像素对象只导入一次。
 
-文档 ID：`apple:symbol:s:10PrinterSDK8PrintJobC7BuilderC7receiptAeA07ReceiptD7OptionsV_tcfc`
+文档 ID：`apple:symbol:s:10PrinterSDK13PreparedPrintV7receipt8elements6finish16mediaRequirementAcA17ReceiptJobOptionsV_SayAA0D7ElementOGAA0j6FinishL0VAA05MediaI0VSgtcfc`
 
 符号种类：`swift.init`；访问级别：`public`。
 
@@ -5116,139 +3569,131 @@ init(receipt: ReceiptJobOptions)
 
 | 名称 | precise identifier |
 | --- | --- |
+| MediaRequirement | `s:10PrinterSDK16MediaRequirementV` |
+| PrintElement | `s:10PrinterSDK12PrintElementO` |
+| ReceiptFinishOptions | `s:10PrinterSDK20ReceiptFinishOptionsV` |
 | ReceiptJobOptions | `s:10PrinterSDK17ReceiptJobOptionsV` |
 
-<a id="api-0d60a4469d8988c43268"></a>
+<a id="api-bc94fceab7b905f1b496"></a>
 
-### PrintJob.Builder.setMediaRequirement(_:)
+## PrintElement
 
-设置或清除介质前置条件。
+<a id="api-426f707123e1ef20eb3f"></a>
+
+### PrintElement
+
+打印描述中的图片或空白元素。
 
 ```swift
-func setMediaRequirement(_ value: MediaRequirement?)
+enum PrintElement
 ```
 
-nil清除要求，不发送介质设置。build校验字段，submit校验支持与已有证据。
+image指定原始像素及标签坐标；blank用于小票留白。元素只保存数据，Manager负责后续native任务构建和设备队列提交。
 
-文档 ID：`apple:symbol:s:10PrinterSDK8PrintJobC7BuilderC19setMediaRequirementyyAA0gH0VSgF`
+文档 ID：`apple:symbol:s:10PrinterSDK12PrintElementO`
 
-符号种类：`swift.method`；访问级别：`public`。
+符号种类：`swift.enum`；访问级别：`public`。
+
+<a id="api-8f7b8270bb5a33c56bd9"></a>
+
+### PrintElement.blank(dots:)
+
+添加小票空白元素。
+
+```swift
+case blank(dots: UInt32)
+```
+
+dots为纵向空白长度；不执行设备IO，后续由Manager构建任务并在native队列串行发送。
+
+文档 ID：`apple:symbol:s:10PrinterSDK12PrintElementO5blankyACs6UInt32V_tcACmF`
+
+符号种类：`swift.enum.case`；访问级别：`public`。
 
 声明引用的编译器标识：
 
 | 名称 | precise identifier |
 | --- | --- |
-| MediaRequirement | `s:10PrinterSDK16MediaRequirementV` |
+| UInt32 | `s:s6UInt32V` |
 
-<a id="api-05953ecc687babfb40b0"></a>
+<a id="api-4a1b87f6a9048baa13fa"></a>
 
-### PrintJob.Builder.setReceiptFinish(_:)
+### PrintElement.image(_:x:y:)
 
-设置本次小票结束选项。
+添加图片元素。
 
 ```swift
-func setReceiptFinish(_ value: ReceiptFinishOptions) throws
+case image(Pixels, x: Int32 = 0, y: Int32 = 0)
 ```
 
-仅小票可用，否则1004；当前不支持的cut/scope在提交时明确拒绝，不自动发送切纸。
+引用Pixels并提供以dots计的标签坐标；小票图像顺序由元素顺序确定，native图像由Manager后台导入。
 
-文档 ID：`apple:symbol:s:10PrinterSDK8PrintJobC7BuilderC16setReceiptFinishyyAA0gH7OptionsVKF`
+文档 ID：`apple:symbol:s:10PrinterSDK12PrintElementO5imageyAcA6PixelsC_s5Int32VAHtcACmF`
 
-符号种类：`swift.method`；访问级别：`public`。
+符号种类：`swift.enum.case`；访问级别：`public`。
 
 声明引用的编译器标识：
 
 | 名称 | precise identifier |
 | --- | --- |
-| ReceiptFinishOptions | `s:10PrinterSDK20ReceiptFinishOptionsV` |
+| Int32 | `s:s5Int32V` |
+| Pixels | `s:10PrinterSDK6PixelsC` |
 
-<a id="api-fcb644f7b0eb6c8a6489"></a>
+<a id="api-7ef50076423442cb8f07"></a>
 
-## PrintOperation
+## PrintOptions
 
-<a id="api-97ddc1978712bd1f39f9"></a>
+<a id="api-ee75d72f883da56965db"></a>
 
-### PrintOperation
+### PrintOptions
 
-独立持有结果与终态订阅的操作。
-
-```swift
-final class PrintOperation
-```
-
-由成功提交返回，不要求设备继续存活。snapshot观察过程，result读取终态；close撤销调用方访问和新增注册权，不取消工作，既有onComplete订阅仍被观察器保活并兑现。取消工作须显式cancel，停止通知须注销对应Subscription。 Swift 跨隔离访问采用 Sendable 契约，内部同步与原生存储生命周期保护保持；可变 App 状态须自行同步，阻塞 IO 仍应在后台执行。
-
-文档 ID：`apple:symbol:s:10PrinterSDK14PrintOperationC`
-
-符号种类：`swift.class`；访问级别：`public`。
-
-<a id="api-92ab438cb6d8e8afb8b9"></a>
-
-### PrintOperation.cancel()
-
-显式请求协作取消此操作。
+请求总超时配置。
 
 ```swift
-func cancel() throws
+struct PrintOptions
 ```
 
-不关闭共享设备，不能撤回已发送字节。结果仍由result/onComplete观察，完成与取消竞争时可能已经正常完成。调用方close后抛1002，终态后重复cancel为空操作。
+超时预算覆盖等待、应用准备、native准入和执行阶段；timeoutMs/timeoutMilliseconds使用毫秒，必须为有效正值。
 
-文档 ID：`apple:symbol:s:10PrinterSDK14PrintOperationC6cancelyyKF`
+文档 ID：`apple:symbol:s:10PrinterSDK12PrintOptionsV`
 
-符号种类：`swift.method`；访问级别：`public`。
+符号种类：`swift.struct`；访问级别：`public`。
 
-<a id="api-c62d17e2700dd934e80a"></a>
+<a id="api-f0182f20c26582a9237f"></a>
 
-### PrintOperation.close()
+### PrintOptions.init(timeoutMilliseconds:)
 
-关闭调用方操作访问权。
+构造PrintOptions只读数据。
 
 ```swift
-func close()
+init(timeoutMilliseconds: UInt32 = 120000)
 ```
 
-幂等；不取消打印，也不撤回之前注册的终态通知。之后getter/cancel/新增onComplete抛1002；内部观察器保留必要native所有权至终态复制，随后释放。显式Subscription注销只停止对应通知。
+超时预算覆盖等待、应用准备、native准入和执行阶段；timeoutMs/timeoutMilliseconds使用毫秒，必须为有效正值。
 
-文档 ID：`apple:symbol:s:10PrinterSDK14PrintOperationC5closeyyF`
+文档 ID：`apple:symbol:s:10PrinterSDK12PrintOptionsV19timeoutMillisecondsACs6UInt32V_tcfc`
 
-符号种类：`swift.method`；访问级别：`public`。
-
-<a id="api-4e6fd0d3748e85734262"></a>
-
-### PrintOperation.diagnostic()
-
-读取终态结构化诊断。
-
-```swift
-func diagnostic() throws -> ErrorDiagnostic
-```
-
-复用result().diagnostic，包含稳定错误码、操作/连接代次和可选原生代码，仅用于诊断。未终结或close后抛1002；结果独立于设备存活。
-
-文档 ID：`apple:symbol:s:10PrinterSDK14PrintOperationC10diagnosticAA15ErrorDiagnosticVyKF`
-
-符号种类：`swift.method`；访问级别：`public`。
+符号种类：`swift.init`；访问级别：`public`。
 
 声明引用的编译器标识：
 
 | 名称 | precise identifier |
 | --- | --- |
-| ErrorDiagnostic | `s:10PrinterSDK15ErrorDiagnosticV` |
+| UInt32 | `s:s6UInt32V` |
 
-<a id="api-7ac60332768717e5aa7e"></a>
+<a id="api-6cf5b05e278a1d6086e4"></a>
 
-### PrintOperation.id
+### PrintOptions.timeoutMilliseconds
 
-接纳该操作时分配的设备内操作标识符。
+请求总超时配置。
 
 ```swift
-let id: UInt64
+let timeoutMilliseconds: UInt32
 ```
 
-不可变 `UInt64`，与 `OperationSnapshot.id` 一致，在所属设备中标识操作；不要当作跨设备或跨进程唯一 ID。读取此保存值不访问设备，即使操作对象已关闭仍可读取，但关闭后不能再取得新快照或请求取消。
+超时预算覆盖等待、应用准备、native准入和执行阶段；timeoutMs/timeoutMilliseconds使用毫秒，必须为有效正值。
 
-文档 ID：`apple:symbol:s:10PrinterSDK14PrintOperationC2ids6UInt64Vvp`
+文档 ID：`apple:symbol:s:10PrinterSDK12PrintOptionsV19timeoutMillisecondss6UInt32Vvp`
 
 符号种类：`swift.property`；访问级别：`public`。
 
@@ -5256,120 +3701,7 @@ let id: UInt64
 
 | 名称 | precise identifier |
 | --- | --- |
-| UInt64 | `s:s6UInt64V` |
-
-<a id="api-11fe73b3d6c5be86dd14"></a>
-
-### PrintOperation.message()
-
-读取终态诊断消息。
-
-```swift
-func message() throws -> String
-```
-
-复用result()的有界诊断文本；未终结或close后抛1002。业务以稳定errorCode判断，消息可能为空，不包含像素或平台自由文本。
-
-文档 ID：`apple:symbol:s:10PrinterSDK14PrintOperationC7messageSSyKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| String | `s:SS` |
-
-<a id="api-9d9ad06a23d74f3c64b0"></a>
-
-### PrintOperation.onComplete(queue:_:)
-
-注册一次异步终态结果投递。
-
-```swift
-@discardableResult func onComplete(queue: DispatchQueue = .main, _ callback: @escaping @Sendable (OperationResult) -> Void) throws -> ObservationSubscription
-```
-
-默认主队列，可显式指定DispatchQueue；终态后注册仍异步投递。注册与完成竞态不会遗漏或重复；有效订阅最多一次执行，客户代码在锁外且不在原生IO worker执行。close不撤回既有通知，Subscription.cancel/close停止尚未开始的投递，已开始回调不可撤回。无需持有token来维持完成通知。关闭后新增注册抛1002。 回调声明为 `@Sendable`，捕获的跨线程值须满足 Sendable 或适当隔离；UI 更新显式切回 MainActor。默认回调队列仍为主队列。
-
-文档 ID：`apple:symbol:s:10PrinterSDK14PrintOperationC10onComplete5queue_AA23ObservationSubscriptionCSo012OS_dispatch_G0C_yAA0D6ResultVYbctKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| DispatchQueue | `c:objc(cs)OS_dispatch_queue` |
-| ObservationSubscription | `s:10PrinterSDK23ObservationSubscriptionC` |
-| OperationResult | `s:10PrinterSDK15OperationResultV` |
-| Void | `s:s4Voida` |
-
-<a id="api-1ad69c0dbc84ea62f076"></a>
-
-### PrintOperation.result()
-
-读取并缓存完整不可变终态。
-
-```swift
-func result() throws -> OperationResult
-```
-
-尚未终结或调用方close后抛1002。成功返回最终snapshot、诊断和可选status；复制完成后释放内部native结果句柄，缓存不保留图像载荷。设备销毁后仍可读，不等待打印机IO。
-
-文档 ID：`apple:symbol:s:10PrinterSDK14PrintOperationC6resultAA0D6ResultVyKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| OperationResult | `s:10PrinterSDK15OperationResultV` |
-
-<a id="api-12fe1504d628308a8272"></a>
-
-### PrintOperation.snapshot()
-
-读取操作的过程或缓存终态快照。
-
-```swift
-func snapshot() throws -> OperationSnapshot
-```
-
-不执行打印机IO，不要求设备存活。bytesTotal和精确性按证据位解释，DATA_SENT不是物理打印完成；close后抛1002。
-
-文档 ID：`apple:symbol:s:10PrinterSDK14PrintOperationC8snapshotAA0D8SnapshotVyKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| OperationSnapshot | `s:10PrinterSDK17OperationSnapshotV` |
-
-<a id="api-ffaa4650c0920a01ae16"></a>
-
-### PrintOperation.statusResult()
-
-读取有效硬件状态响应。
-
-```swift
-func statusResult() throws -> HardwareStatusResult
-```
-
-仅当终态result.status非nil时返回，否则抛1002；不能由零mask推断硬件正常。当前标准CPCL/ESC/POS查询在IO前1004拒绝，所以不会产生成功状态operation。
-
-文档 ID：`apple:symbol:s:10PrinterSDK14PrintOperationC12statusResultAA014HardwareStatusF0VyKF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| HardwareStatusResult | `s:10PrinterSDK20HardwareStatusResultV` |
+| UInt32 | `s:s6UInt32V` |
 
 <a id="api-51947abf7e628a2d3bc3"></a>
 
@@ -5385,7 +3717,7 @@ func statusResult() throws -> HardwareStatusResult
 struct PrinterCapabilities
 ```
 
-由MobilePrinter.capabilities()返回，包含features、constraints和geometry；不存在整体“已验证”布尔值，必须按各成员known/deviceSupport/evidence判断。此对象不包含平台原生句柄。
+由PrinterManager.capabilities完成回调返回，包含features、constraints和geometry；不存在整体“已验证”布尔值，必须按各成员known/deviceSupport/evidence判断。此对象不包含平台原生句柄。
 
 文档 ID：`apple:symbol:s:10PrinterSDK0A12CapabilitiesV`
 
@@ -5675,7 +4007,7 @@ case pendingPayloadBytes
 enum PrinterFeature
 ```
 
-传给 `MobilePrinter.feature`，选择要读取的软件实现、设备支持及证据。枚举项存在不表示功能已实现或硬件支持；以返回的 `FeatureSupport` 为准。
+传给 `PrinterCapabilities.feature`，选择要读取的软件实现、设备支持及证据。枚举项存在不表示功能已实现或硬件支持；以返回的 `FeatureSupport` 为准。
 
 文档 ID：`apple:symbol:s:10PrinterSDK0A7FeatureO`
 
@@ -6109,96 +4441,6 @@ nil表示未知，不能解释为零、无限或不支持。当前纯通信设�
 | --- | --- |
 | UInt32 | `s:s6UInt32V` |
 
-<a id="api-ed1435ddffbdea0f0ae1"></a>
-
-## PrinterImage
-
-<a id="api-1d9823b5f5c64962004c"></a>
-
-### PrinterImage
-
-一次复制、可被多个作业共享的不可变图像。
-
-```swift
-final class PrinterImage
-```
-
-初始化复制紧密排列像素和图像处理选项，成功后可释放源Data。PrintJob只保留其只读native存储，不再次复制像素；ARC析构释放调用方image句柄，已构建作业不受影响。每图源像素上限16MiB。 Swift 跨隔离访问采用 Sendable 契约，内部同步与原生存储生命周期保护保持；可变 App 状态须自行同步，阻塞 IO 仍应在后台执行。
-
-文档 ID：`apple:symbol:s:10PrinterSDK0A5ImageC`
-
-符号种类：`swift.class`；访问级别：`public`。
-
-<a id="api-ba529303b83ad3cc64a6"></a>
-
-### PrinterImage.height
-
-源图像高度。
-
-```swift
-let height: UInt32
-```
-
-单位为像素，初始化后不可变且大于零；不能由源高度推断纸张物理高度或打印完成。
-
-文档 ID：`apple:symbol:s:10PrinterSDK0A5ImageC6heights6UInt32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-ad0b8c63e749b4a5e4e5"></a>
-
-### PrinterImage.init(pixels:width:height:format:algorithm:threshold:invert:fitWidth:targetWidthDots:)
-
-校验并一次复制源像素与图像选项。
-
-```swift
-init(pixels: Data, width: UInt32, height: UInt32, format: PixelFormat = .gray8, algorithm: ImageAlgorithm = .threshold, threshold: UInt32 = 128, invert: Bool = false, fitWidth: Bool = false, targetWidthDots: UInt32 = 0) throws
-```
-
-Data必须紧密排列且长度恰为width*height*bpp，宽高大于零、每图最多16MiB；threshold为0..255。默认gray8/threshold128、不反色、不拟合；fitWidth=false要求targetWidthDots=0，开启后由目标宽度和作业可用区计算。成功后源Data可释放，jobs共享只读native存储；校验失败1001/1004、资源超限1008，不做IO。
-
-文档 ID：`apple:symbol:s:10PrinterSDK0A5ImageC6pixels5width6height6format9algorithm9threshold6invert8fitWidth06targetL4DotsAC10Foundation4DataV_s6UInt32VAqA11PixelFormatOAA0C9AlgorithmOAQS2bAQtKcfc`
-
-符号种类：`swift.init`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| Bool | `s:Sb` |
-| Data | `s:10Foundation4DataV` |
-| ImageAlgorithm | `s:10PrinterSDK14ImageAlgorithmO` |
-| PixelFormat | `s:10PrinterSDK11PixelFormatO` |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-81975c6aaf2b82351d38"></a>
-
-### PrinterImage.width
-
-源图像宽度。
-
-```swift
-let width: UInt32
-```
-
-单位为像素，初始化后不可变且大于零；拟合后的打印宽度由作业可用区域和图像选项决定。
-
-文档 ID：`apple:symbol:s:10PrinterSDK0A5ImageC5widths6UInt32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
 <a id="api-1d5ad0ccf40ef0036743"></a>
 
 ## PrinterManager
@@ -6207,47 +4449,31 @@ let width: UInt32
 
 ### PrinterManager
 
-拥有并复用 BLE 设备的可选管理器。
+独立的单设备打印会话。
 
 ```swift
 final class PrinterManager
 ```
 
-通过 shared 获取共享实例，或直接初始化注册表独立的普通实例。同一管理器按外设 UUID 复用 MobilePrinter，连接选项必须一致；不同管理器不共享设备，应用负责避免重复占用同一硬件。管理器拥有设备，返回对象供调用者借用打印接口；管理器所有者负责 release/close，借用方不直接 close 设备。工厂只创建未连接设备，不需要打印 Profile；打印参数仍逐次提供，打印与 Raw 继续使用原设备的唯一 FIFO。异步生命周期调用在后台运行阻塞 IO，关闭控制使用独立执行路径；Task 取消不隐式关闭共享设备，需要中断时显式 release/close。close 后实例永久停止接纳，包括 shared。显式 await close() 可等待回收；析构兜底仅调度异步清理，不阻塞析构调用方。管理器不新增协议状态、自动发现、权限界面、重连或重放。 Swift 跨隔离访问采用 Sendable 契约，内部同步与原生存储生命周期保护保持；可变 App 状态须自行同步，阻塞 IO 仍应在后台执行。
+通过构造器创建独立实例；连接、发现、打印、控制、查询和清理均由此入口管理。请求立即返回标识，完成结果异步投递到主线程；准备与准入保持请求顺序，打印机IO始终由native设备队列串行执行，不自动重连、重放或重试。
 
 文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC`
 
 符号种类：`swift.class`；访问级别：`public`。
 
-<a id="api-5fb188f0b92a416ded70"></a>
+<a id="api-ebb248eaaabe130232c3"></a>
 
-### PrinterManager.close()
+### PrinterManager.bondedDevices(completion:)
 
-永久停止接纳并异步回收全部设备。
-
-```swift
-func close() async
-```
-
-停止新设备和连接，为各设备独立调度关闭并等待回收；重复调用共享屏障。回收后drain/copy已注册operation的终态并安排投递，await完成不等待主队列或客户回调执行，不丢取消/失败结果。状态订阅结束，已有完成订阅不依赖设备。shared同样永久关闭；Task取消不撤回清理，也不隐式重放打印。
-
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC5closeyyYaF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-<a id="api-aa0caee2bede3cd43707"></a>
-
-### PrinterManager.connect(_:timeoutMilliseconds:)
-
-异步显式连接本管理器拥有的设备。
+枚举系统已配对的经典蓝牙设备。
 
 ```swift
-func connect(_ printer: MobilePrinter, timeoutMilliseconds: UInt32 = 5000) async throws
+@discardableResult func bondedDevices(completion: @escaping @Sendable (ManagerResult<[DiscoveredPrinter]>) -> Void) -> RequestID
 ```
 
-printer 必须是当前由本管理器拥有的 MobilePrinter；timeoutMilliseconds 默认 5000，须大于 0，单位毫秒，为这次连接的超时。零超时或外部/已经移除的对象抛 PrinterSDKError 1001；管理器关闭、设备正在回收或同设备已有未完成 connect 为 1002。后台执行原设备阻塞连接，await 成功返回 Void，只证明通信连接成功，不确认打印机就绪或纸面能力。已连接设备的再次有效调用沿用原幂等行为；失败后保留条目，可在此前请求结束后显式重试，不自动重连或重放。Task 取消不隐式关闭设备，需要中断时显式 release/close；被回收或关闭打断的连接以 1002 结束，其他传输错误沿用 PrinterSDKError。
+Android通过Manager异步返回只读设备列表；iOS不提供SPP配对枚举，使用同一异步完成通道返回Unsupported，不发起隐式配对。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC7connect_19timeoutMillisecondsyAA06MobileA0C_s6UInt32VtYaKF`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC13bondedDevices10completionAA9RequestIDVyAA0C6ResultVySayAA010DiscoveredA0VGGYbc_tF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -6255,38 +4481,95 @@ printer 必须是当前由本管理器拥有的 MobilePrinter；timeoutMilliseco
 
 | 名称 | precise identifier |
 | --- | --- |
-| MobilePrinter | `s:10PrinterSDK06MobileA0C` |
-| UInt32 | `s:s6UInt32V` |
+| DiscoveredPrinter | `s:10PrinterSDK010DiscoveredA0V` |
+| ManagerResult | `s:10PrinterSDK13ManagerResultV` |
+| RequestID | `s:10PrinterSDK9RequestIDV` |
+| Void | `s:s4Voida` |
 
-<a id="api-d35ade3a5258fcd64664"></a>
+<a id="api-8e997bbe3a79436294af"></a>
 
-### PrinterManager.init()
+### PrinterManager.cancel(_:)
 
-创建具有独立设备注册表的普通管理器。
-
-```swift
-init()
-```
-
-无参数，无打印 Profile。初始化不创建外设连接、不执行打印机 IO，也不扫描或申请权限。实例不与 shared 或其他普通实例复用设备，应用负责避免同一硬件被多个管理器重复占用。管理器所有者持有实例，并显式 await close() 等待设备回收完成；析构仅提供异步关闭兜底，不应当作已经等待回收的证据。
-
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerCACycfc`
-
-符号种类：`swift.init`；访问级别：`public`。
-
-<a id="api-d928e3335ac92eefa708"></a>
-
-### PrinterManager.printer(bleIdentifier:options:)
-
-创建或复用本管理器拥有的 BLE 通信设备。
+请求取消本Manager拥有的请求。
 
 ```swift
-func printer(bleIdentifier: UUID, options: BLEOptions) throws -> MobilePrinter
+func cancel(_ requestID: RequestID)
 ```
 
-bleIdentifier 为已选择的外设 UUID，options 为显式 BLEOptions。相同 UUID 且 service、writeCharacteristic、withResponse、maxWriteBytes 及可选信用流控 dataOut/dataFC 全部相等时返回同一个 MobilePrinter；只要求字段相等，不要求相同配置对象。相同端点选项冲突在 IO 前抛 PrinterSDKError 1001，改变选项须先 await release 原设备。管理器关闭或端点正在回收为 1002，其他 ABI 或资源错误沿用 MobilePrinter。新设备尚未连接；已有设备保留原连接状态。工厂不扫描、不连接、不发送数据、不申请权限，也不要求打印 Profile。返回值由管理器拥有，调用者借用打印接口，并由管理器所有者管理 release/close。
+取消意图覆盖等待、准备、准入与native执行阶段；外部Manager的标识和已完成请求不改变设备。取消本身不证明没有输出，最终结果的outputMayHaveOccurred用于提示可能已部分发送。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC7printer13bleIdentifier7optionsAA06MobileA0C10Foundation4UUIDV_AA10BLEOptionsVtKF`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC6cancelyyAA9RequestIDVF`
+
+符号种类：`swift.method`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| RequestID | `s:10PrinterSDK9RequestIDV` |
+
+<a id="api-e14d59219b4f9bbd09d9"></a>
+
+### PrinterManager.capabilities(completion:)
+
+读取当前设备的能力描述。
+
+```swift
+@discardableResult func capabilities(completion: @escaping @Sendable (ManagerResult<PrinterCapabilities>) -> Void) -> RequestID
+```
+
+异步交付PrinterCapabilities；未知或不支持的能力应按描述处理，能力查询不执行自动打印探测，也不替代每次请求的准入校验。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC12capabilities10completionAA9RequestIDVyAA0C6ResultVyAA0A12CapabilitiesVGYbc_tF`
+
+符号种类：`swift.method`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| ManagerResult | `s:10PrinterSDK13ManagerResultV` |
+| PrinterCapabilities | `s:10PrinterSDK0A12CapabilitiesV` |
+| RequestID | `s:10PrinterSDK9RequestIDV` |
+| Void | `s:s4Voida` |
+
+<a id="api-5cf86e37466fab588b44"></a>
+
+### PrinterManager.close(completion:)
+
+永久关闭Manager并释放其连接资源。
+
+```swift
+@discardableResult func close(completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID
+```
+
+这是幂等的异步清理屏障；所有属于该会话的请求终态先交付，清理完成后再交付close回调。关闭后业务请求异步返回InvalidState。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC5close10completionAA9RequestIDVyAA0C6ResultVyytGYbc_tF`
+
+符号种类：`swift.method`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| ManagerResult | `s:10PrinterSDK13ManagerResultV` |
+| RequestID | `s:10PrinterSDK9RequestIDV` |
+| Void | `s:s4Voida` |
+
+<a id="api-fd2f74dea7cb35e56d69"></a>
+
+### PrinterManager.connect(bleIdentifier:options:timeoutMilliseconds:completion:onDisconnected:)
+
+连接指定设备。
+
+```swift
+@discardableResult func connect(bleIdentifier: UUID, options: BLEOptions, timeoutMilliseconds: UInt32 = 5000, completion: @escaping @Sendable (ManagerResult<Void>) -> Void, onDisconnected: @escaping @Sendable (ManagerResult<Void>) -> Void = { _ in }) -> RequestID
+```
+
+立即返回请求标识；连接成功或失败通过主线程完成回调交付。每个Manager至多拥有一个设备连接，意外断连通过本次连接的onDisconnected通知，不自动重连。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC7connect13bleIdentifier7options19timeoutMilliseconds10completion14onDisconnectedAA9RequestIDV10Foundation4UUIDV_AA10BLEOptionsVs6UInt32VyAA0C6ResultVyytGYbcyAUYbctF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -6295,22 +4578,25 @@ bleIdentifier 为已选择的外设 UUID，options 为显式 BLEOptions。相同
 | 名称 | precise identifier |
 | --- | --- |
 | BLEOptions | `s:10PrinterSDK10BLEOptionsV` |
-| MobilePrinter | `s:10PrinterSDK06MobileA0C` |
+| ManagerResult | `s:10PrinterSDK13ManagerResultV` |
+| RequestID | `s:10PrinterSDK9RequestIDV` |
+| UInt32 | `s:s6UInt32V` |
 | UUID | `s:10Foundation4UUIDV` |
+| Void | `s:s4Voida` |
 
-<a id="api-c972c1939568b364be28"></a>
+<a id="api-d7c58381e8538fbd09c5"></a>
 
-### PrinterManager.release(_:)
+### PrinterManager.disconnect(completion:)
 
-异步回收这个确切的设备对象。
+关闭当前连接并结束本会话请求。
 
 ```swift
-func release(_ printer: MobilePrinter) async
+@discardableResult func disconnect(completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID
 ```
 
-按对象身份匹配，未知/其他管理器/已移除对象为空操作；回收期间保留端点占位，中断连接及发送并等待设备close，随后允许新对象。已注册operation终态仍兑现，状态订阅结束；完成不等待客户callback。不会隐式关闭独立operation调用方访问权或其他管理器设备。
+尽快取消等待、准备和native任务并异步释放资源；清理完成后才可显式连接新设备。不合作的准备代码可以迟到返回，但结果不会再次准入。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC7releaseyyAA06MobileA0CYaF`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC10disconnect10completionAA9RequestIDVyAA0C6ResultVyytGYbc_tF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -6318,29 +4604,266 @@ func release(_ printer: MobilePrinter) async
 
 | 名称 | precise identifier |
 | --- | --- |
-| MobilePrinter | `s:10PrinterSDK06MobileA0C` |
+| ManagerResult | `s:10PrinterSDK13ManagerResultV` |
+| RequestID | `s:10PrinterSDK9RequestIDV` |
+| Void | `s:s4Voida` |
 
-<a id="api-79c127a8fe0a0adb5aea"></a>
+<a id="api-d8eb0d5eb06081170f67"></a>
 
-### PrinterManager.shared
+### PrinterManager.feedToNextLabel(profile:timeoutMilliseconds:completion:)
 
-取得进程共享的可选管理器。
+提交定位下一张标签请求。
 
 ```swift
-static let shared: PrinterManager
+@discardableResult func feedToNextLabel(profile: CpclProfile, timeoutMilliseconds: UInt32 = 120000, completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID
 ```
 
-静态只读属性，返回同一 PrinterManager；首次获取只创建本地管理状态，不扫描、连接或发送打印机字节。由应用指定的管理器所有者协调共享设备的释放与关闭，借用方不直接关闭它们。await shared.close() 完成后该对象永久停止接纳，再次读取 shared 仍返回已关闭实例，不自动重建；需要新生命周期时显式 PrinterManager()。
+指定CpclProfile并在同一native设备队列执行；仅在设备profile声明支持时可用，不自行猜测定位命令。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC6sharedACvpZ`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC15feedToNextLabel7profile19timeoutMilliseconds10completionAA9RequestIDVAA11CpclProfileV_s6UInt32VyAA0C6ResultVyytGYbctF`
 
-符号种类：`swift.type.property`；访问级别：`public`。
+符号种类：`swift.method`；访问级别：`public`。
 
 声明引用的编译器标识：
 
 | 名称 | precise identifier |
 | --- | --- |
-| PrinterManager | `s:10PrinterSDK0A7ManagerC` |
+| CpclProfile | `s:10PrinterSDK11CpclProfileV` |
+| ManagerResult | `s:10PrinterSDK13ManagerResultV` |
+| RequestID | `s:10PrinterSDK9RequestIDV` |
+| UInt32 | `s:s6UInt32V` |
+| Void | `s:s4Voida` |
+
+<a id="api-d35ade3a5258fcd64664"></a>
+
+### PrinterManager.init()
+
+创建独立Manager实例。
+
+```swift
+init()
+```
+
+每个实例至多管理一个连接；不使用共享单例。应用按页面或业务所有权保存实例，并在结束时调用异步close释放资源。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerCACycfc`
+
+符号种类：`swift.init`；访问级别：`public`。
+
+<a id="api-d7b42e18cdcc63d264fc"></a>
+
+### PrinterManager.print(profile:options:preparation:completion:)
+
+准备并提交一次标签或小票打印请求。
+
+```swift
+@discardableResult func print(profile: CpclProfile, options: PrintOptions = PrintOptions(), preparation: @escaping @Sendable (CancellationContext) throws -> PreparedPrint, completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID
+```
+
+profile选择本次编码协议；preparation在后台产生PreparedPrint，options限制总超时。调用顺序决定准备准入顺序，完成回调区分dataSent与deviceConfirmed；任何失败都不自动重试或重放。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC5print7profile7options11preparation10completionAA9RequestIDVAA11CpclProfileV_AA12PrintOptionsVAA08PreparedM0VAA19CancellationContextCYbKcyAA0C6ResultVyytGYbctF`
+
+符号种类：`swift.method`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| CancellationContext | `s:10PrinterSDK19CancellationContextC` |
+| CpclProfile | `s:10PrinterSDK11CpclProfileV` |
+| ManagerResult | `s:10PrinterSDK13ManagerResultV` |
+| PreparedPrint | `s:10PrinterSDK13PreparedPrintV` |
+| PrintOptions | `s:10PrinterSDK12PrintOptionsV` |
+| RequestID | `s:10PrinterSDK9RequestIDV` |
+| Void | `s:s4Voida` |
+
+<a id="api-f99ea804160d66ba036e"></a>
+
+### PrinterManager.print(profile:options:preparation:completion:)
+
+准备并提交一次标签或小票打印请求。
+
+```swift
+@discardableResult func print(profile: ReceiptProfile, options: PrintOptions = PrintOptions(), preparation: @escaping @Sendable (CancellationContext) throws -> PreparedPrint, completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID
+```
+
+profile选择本次编码协议；preparation在后台产生PreparedPrint，options限制总超时。调用顺序决定准备准入顺序，完成回调区分dataSent与deviceConfirmed；任何失败都不自动重试或重放。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC5print7profile7options11preparation10completionAA9RequestIDVAA14ReceiptProfileV_AA12PrintOptionsVAA08PreparedM0VAA19CancellationContextCYbKcyAA0C6ResultVyytGYbctF`
+
+符号种类：`swift.method`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| CancellationContext | `s:10PrinterSDK19CancellationContextC` |
+| ManagerResult | `s:10PrinterSDK13ManagerResultV` |
+| PreparedPrint | `s:10PrinterSDK13PreparedPrintV` |
+| PrintOptions | `s:10PrinterSDK12PrintOptionsV` |
+| ReceiptProfile | `s:10PrinterSDK14ReceiptProfileV` |
+| RequestID | `s:10PrinterSDK9RequestIDV` |
+| Void | `s:s4Voida` |
+
+<a id="api-d55bab90e3229809e298"></a>
+
+### PrinterManager.queryStatus(configuration:timeoutMilliseconds:completion:)
+
+提交硬件状态查询请求。
+
+```swift
+@discardableResult func queryStatus(configuration: StatusQueryConfiguration, timeoutMilliseconds: UInt32 = 5000, completion: @escaping @Sendable (ManagerResult<StatusResult>) -> Void) -> RequestID
+```
+
+配置明确协议请求、响应和超时；请求/响应事务占用同一设备队列。结果通过StatusResult报告已知位与活动位，不支持查询时异步失败。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC11queryStatus13configuration19timeoutMilliseconds10completionAA9RequestIDVAA0E18QueryConfigurationV_s6UInt32VyAA0C6ResultVyAA0eO0VGYbctF`
+
+符号种类：`swift.method`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| ManagerResult | `s:10PrinterSDK13ManagerResultV` |
+| RequestID | `s:10PrinterSDK9RequestIDV` |
+| StatusQueryConfiguration | `s:10PrinterSDK24StatusQueryConfigurationV` |
+| StatusResult | `s:10PrinterSDK12StatusResultV` |
+| UInt32 | `s:s6UInt32V` |
+| Void | `s:s4Voida` |
+
+<a id="api-c0e7477eff9e8142c950"></a>
+
+### PrinterManager.scanBLE(seconds:service:completion:)
+
+枚举一段时间内发现的BLE设备。
+
+```swift
+@discardableResult func scanBLE(seconds: TimeInterval = 10, service: UUID? = nil, completion: @escaping @Sendable (ManagerResult<[DiscoveredPrinter]>) -> Void) -> RequestID
+```
+
+服务过滤和扫描时长由请求给定，结果只含只读DiscoveredPrinter数据；扫描由Manager持有并可按请求标识取消。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC7scanBLE7seconds7service10completionAA9RequestIDVSd_10Foundation4UUIDVSgyAA0C6ResultVySayAA010DiscoveredA0VGGYbctF`
+
+符号种类：`swift.method`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| DiscoveredPrinter | `s:10PrinterSDK010DiscoveredA0V` |
+| ManagerResult | `s:10PrinterSDK13ManagerResultV` |
+| RequestID | `s:10PrinterSDK9RequestIDV` |
+| TimeInterval | `c:@T@NSTimeInterval` |
+| UUID | `s:10Foundation4UUIDV` |
+| Void | `s:s4Voida` |
+
+<a id="api-914c8d55d77dce129969"></a>
+
+### PrinterManager.sdkInfo(completion:)
+
+读取已加载SDK的身份信息。
+
+```swift
+@discardableResult func sdkInfo(completion: @escaping @Sendable (ManagerResult<SDKInfo>) -> Void) -> RequestID
+```
+
+异步交付分发版本、native版本及ABI版本/修订，用于本地集成诊断；该值不等同于硬件验证证明。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC7sdkInfo10completionAA9RequestIDVyAA0C6ResultVyAA7SDKInfoVGYbc_tF`
+
+符号种类：`swift.method`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| ManagerResult | `s:10PrinterSDK13ManagerResultV` |
+| RequestID | `s:10PrinterSDK9RequestIDV` |
+| SDKInfo | `s:10PrinterSDK7SDKInfoV` |
+| Void | `s:s4Voida` |
+
+<a id="api-b0b877871bf6897384ec"></a>
+
+### PrinterManager.sendRaw(_:copies:timeoutMilliseconds:completion:)
+
+发送显式原始命令请求。
+
+```swift
+@discardableResult func sendRaw(_ bytes: Data, copies: UInt32 = 1, timeoutMilliseconds: UInt32 = 120000, completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID
+```
+
+入口先检查非空、copies 为 1..100、超时为正，否则异步回调 1001；再检查载荷超过 1MiB 返回 1008，恰好等于允许；再检查生命周期返回 1002、64 个未结束业务请求预算返回 1008。有效输入在返回前制作有界快照，最终入队原子复检容量。全部 Raw 与打印、介质、查询共用同一 native FIFO；不解析载荷协议语义。入口拒绝不产生输出，结果仍由一次主线程回调交付。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC7sendRaw_6copies19timeoutMilliseconds10completionAA9RequestIDV10Foundation4DataV_s6UInt32VANyAA0C6ResultVyytGYbctF`
+
+符号种类：`swift.method`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Data | `s:10Foundation4DataV` |
+| ManagerResult | `s:10PrinterSDK13ManagerResultV` |
+| RequestID | `s:10PrinterSDK9RequestIDV` |
+| UInt32 | `s:s6UInt32V` |
+| Void | `s:s4Voida` |
+
+<a id="api-e373a7328c3abd50cf2b"></a>
+
+### PrinterManager.setMedia(_:profile:timeoutMilliseconds:completion:)
+
+提交介质设置控制请求。
+
+```swift
+@discardableResult func setMedia(_ settings: MediaSettings, profile: CpclProfile, timeoutMilliseconds: UInt32 = 120000, completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID
+```
+
+使用MediaSettings和明确CpclProfile描述设置，能力与参数经校验后在同一设备队列执行；不支持的字段返回稳定错误，不依据型号猜测支持。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC8setMedia_7profile19timeoutMilliseconds10completionAA9RequestIDVAA0E8SettingsV_AA11CpclProfileVs6UInt32VyAA0C6ResultVyytGYbctF`
+
+符号种类：`swift.method`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| CpclProfile | `s:10PrinterSDK11CpclProfileV` |
+| ManagerResult | `s:10PrinterSDK13ManagerResultV` |
+| MediaSettings | `s:10PrinterSDK13MediaSettingsV` |
+| RequestID | `s:10PrinterSDK9RequestIDV` |
+| UInt32 | `s:s6UInt32V` |
+| Void | `s:s4Voida` |
+
+<a id="api-60016c8e0d0bb72ca5e8"></a>
+
+### PrinterManager.setMediaMode(_:profile:timeoutMilliseconds:completion:)
+
+提交介质跟踪模式控制请求。
+
+```swift
+@discardableResult func setMediaMode(_ mode: MediaMode, profile: CpclProfile, timeoutMilliseconds: UInt32 = 120000, completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID
+```
+
+使用显式MediaMode和CpclProfile；能力与参数经校验后在同一设备队列执行，不支持时通过完成回调返回稳定错误。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC12setMediaMode_7profile19timeoutMilliseconds10completionAA9RequestIDVAA0eF0O_AA11CpclProfileVs6UInt32VyAA0C6ResultVyytGYbctF`
+
+符号种类：`swift.method`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| CpclProfile | `s:10PrinterSDK11CpclProfileV` |
+| ManagerResult | `s:10PrinterSDK13ManagerResultV` |
+| MediaMode | `s:10PrinterSDK9MediaModeO` |
+| RequestID | `s:10PrinterSDK9RequestIDV` |
+| UInt32 | `s:s6UInt32V` |
+| Void | `s:s4Voida` |
 
 <a id="api-7c7a9dd0ee08114f96bd"></a>
 
@@ -6512,48 +5035,6 @@ init?(rawValue: UInt32)
 | --- | --- |
 | UInt32 | `s:s6UInt32V` |
 
-<a id="api-1d012fc82f6300f83d19"></a>
-
-## PrinterSDK
-
-<a id="api-69cd0edad9ceb306a136"></a>
-
-### PrinterSDK
-
-SDK 运行库信息入口。
-
-```swift
-enum PrinterSDK
-```
-
-只提供本地运行库身份查询，不持有全局设备，不创建第二个执行器或全局打印队列。
-
-文档 ID：`apple:symbol:s:10PrinterSDKAAO`
-
-符号种类：`swift.enum`；访问级别：`public`。
-
-<a id="api-85ad18e01796aece6428"></a>
-
-### PrinterSDK.info()
-
-读取实际加载原生运行库身份。
-
-```swift
-static func info() throws -> SDKInfo
-```
-
-静态本地查询，无需设备或蓝牙连接，不进行 IO。返回 SDKInfo，ABI、原生版本、分发版本及可选构建 ID 均来自已加载原生库；资源或 ABI 错误按 PrinterSDKError 返回。
-
-文档 ID：`apple:symbol:s:10PrinterSDKAAO4infoAA7SDKInfoVyKFZ`
-
-符号种类：`swift.type.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| SDKInfo | `s:10PrinterSDK7SDKInfoV` |
-
 <a id="api-7eade5ddc7d13cb74d9a"></a>
 
 ## PrinterSDKError
@@ -6648,28 +5129,6 @@ let code: Int32
 | 名称 | precise identifier |
 | --- | --- |
 | Int32 | `s:s5Int32V` |
-
-<a id="api-ec199e4764e14065952b"></a>
-
-### PrinterSDKError.diagnostic
-
-可选的原生有界诊断。
-
-```swift
-let diagnostic: ErrorDiagnostic?
-```
-
-旧 init(_ code:) 初始化为 nil；新重载可以附加本次连接失败等记录。业务分类继续使用 code，比较保留仅按 code 相等的语义。
-
-文档 ID：`apple:symbol:s:10PrinterSDK0A8SDKErrorV10diagnosticAA15ErrorDiagnosticVSgvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| ErrorDiagnostic | `s:10PrinterSDK15ErrorDiagnosticV` |
 
 <a id="api-a1633f493b15c6c59882"></a>
 
@@ -6787,29 +5246,6 @@ init(_ code: Int32)
 | --- | --- |
 | Int32 | `s:s5Int32V` |
 
-<a id="api-313bc03ed43a1cebd226"></a>
-
-### PrinterSDKError.init(_:diagnostic:)
-
-创建附带可选诊断的 SDK 异常。
-
-```swift
-init(_ code: Int32, diagnostic: ErrorDiagnostic?)
-```
-
-code 是稳定 SDK 错误码，diagnostic 为可选的有界原生说明；不执行 IO。旧 init(_ code:) 签名保留，此重载必须显式提供 diagnostic，未提供诊断时传 nil。
-
-文档 ID：`apple:symbol:s:10PrinterSDK0A8SDKErrorV_10diagnosticACs5Int32V_AA15ErrorDiagnosticVSgtcfc`
-
-符号种类：`swift.init`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| ErrorDiagnostic | `s:10PrinterSDK15ErrorDiagnosticV` |
-| Int32 | `s:s5Int32V` |
-
 <a id="api-a56515ad7a768803dd57"></a>
 
 ### PrinterSDKError.localizedDescription
@@ -6896,7 +5332,7 @@ var recoverySuggestion: String? { get }
 struct ReceiptFinishOptions
 ```
 
-默认零留白、不切纸、eachCopy。只保存选项，build/submit判断有效性；当前切纸和endOfJob范围尚不支持，不能静默忽略。
+默认零留白、不切纸、eachCopy。只保存选项，Manager构建和提交判断有效性；当前切纸和endOfJob范围尚不支持，不能静默忽略。
 
 文档 ID：`apple:symbol:s:10PrinterSDK20ReceiptFinishOptionsV`
 
@@ -6912,7 +5348,7 @@ struct ReceiptFinishOptions
 let cut: CutMode
 ```
 
-初始化后不可变；属于作业参数而非连接默认配置，最终有效性由build/submit校验。
+初始化后不可变；属于作业参数而非连接默认配置，最终有效性由Manager构建和提交校验。
 
 文档 ID：`apple:symbol:s:10PrinterSDK20ReceiptFinishOptionsV3cutAA7CutModeOvp`
 
@@ -6934,7 +5370,7 @@ let cut: CutMode
 init(trailingBlankDots: UInt32 = 0, cut: CutMode = .none, scope: FinishScope = .eachCopy)
 ```
 
-默认零留白、不切纸、eachCopy。只保存选项，build/submit判断有效性；当前切纸和endOfJob范围尚不支持，不能静默忽略。 此初始化不执行IO，也不提前证明参数或硬件支持；实际校验在Builder.build与MobilePrinter.submit进行。
+默认零留白、不切纸、eachCopy。只保存选项，Manager构建和提交判断有效性；当前切纸和endOfJob范围尚不支持，不能静默忽略。 此初始化不执行IO，也不提前证明参数或硬件支持；实际校验在Manager准备后的native构建与准入进行。
 
 文档 ID：`apple:symbol:s:10PrinterSDK20ReceiptFinishOptionsV17trailingBlankDots3cut5scopeACs6UInt32V_AA7CutModeOAA0D5ScopeOtcfc`
 
@@ -6958,7 +5394,7 @@ init(trailingBlankDots: UInt32 = 0, cut: CutMode = .none, scope: FinishScope = .
 let scope: FinishScope
 ```
 
-初始化后不可变；属于作业参数而非连接默认配置，最终有效性由build/submit校验。
+初始化后不可变；属于作业参数而非连接默认配置，最终有效性由Manager构建和提交校验。
 
 文档 ID：`apple:symbol:s:10PrinterSDK20ReceiptFinishOptionsV5scopeAA0D5ScopeOvp`
 
@@ -6980,7 +5416,7 @@ let scope: FinishScope
 let trailingBlankDots: UInt32
 ```
 
-初始化后不可变；属于作业参数而非连接默认配置，最终有效性由build/submit校验。
+初始化后不可变；属于作业参数而非连接默认配置，最终有效性由Manager构建和提交校验。
 
 文档 ID：`apple:symbol:s:10PrinterSDK20ReceiptFinishOptionsV17trailingBlankDotss6UInt32Vvp`
 
@@ -7006,7 +5442,7 @@ let trailingBlankDots: UInt32
 struct ReceiptJobOptions
 ```
 
-只保存参数，build/submit校验；width/DPI/整单预算大于零，copies为1..100。maxTotalLengthDots包含全部副本和结束留白，不是设备单页上限；当前后端不支持非零边距。
+只保存参数，Manager构建和提交校验；width/DPI/整单预算大于零，copies为1..100。maxTotalLengthDots包含全部副本和结束留白，不是设备单页上限；当前后端不支持非零边距。
 
 文档 ID：`apple:symbol:s:10PrinterSDK17ReceiptJobOptionsV`
 
@@ -7022,7 +5458,7 @@ struct ReceiptJobOptions
 let copies: UInt32
 ```
 
-初始化后不可变；属于作业参数而非连接默认配置，最终有效性由build/submit校验。
+初始化后不可变；属于作业参数而非连接默认配置，最终有效性由Manager构建和提交校验。
 
 文档 ID：`apple:symbol:s:10PrinterSDK17ReceiptJobOptionsV6copiess6UInt32Vvp`
 
@@ -7044,7 +5480,7 @@ let copies: UInt32
 let dpi: UInt32
 ```
 
-初始化后不可变；属于作业参数而非连接默认配置，最终有效性由build/submit校验。
+初始化后不可变；属于作业参数而非连接默认配置，最终有效性由Manager构建和提交校验。
 
 文档 ID：`apple:symbol:s:10PrinterSDK17ReceiptJobOptionsV3dpis6UInt32Vvp`
 
@@ -7066,7 +5502,7 @@ let dpi: UInt32
 init(widthDots: UInt32, maxTotalLengthDots: UInt32, dpi: UInt32, copies: UInt32 = 1, marginLeftDots: UInt32 = 0, marginRightDots: UInt32 = 0)
 ```
 
-只保存参数，build/submit校验；width/DPI/整单预算大于零，copies为1..100。maxTotalLengthDots包含全部副本和结束留白，不是设备单页上限；当前后端不支持非零边距。 此初始化不执行IO，也不提前证明参数或硬件支持；实际校验在Builder.build与MobilePrinter.submit进行。
+只保存参数，Manager构建和提交校验；width/DPI/整单预算大于零，copies为1..100。maxTotalLengthDots包含全部副本和结束留白，不是设备单页上限；当前后端不支持非零边距。 此初始化不执行IO，也不提前证明参数或硬件支持；实际校验在Manager准备后的native构建与准入进行。
 
 文档 ID：`apple:symbol:s:10PrinterSDK17ReceiptJobOptionsV9widthDots014maxTotalLengthG03dpi6copies010marginLeftG00m5RightG0ACs6UInt32V_A5Ktcfc`
 
@@ -7088,7 +5524,7 @@ init(widthDots: UInt32, maxTotalLengthDots: UInt32, dpi: UInt32, copies: UInt32 
 let marginLeftDots: UInt32
 ```
 
-初始化后不可变；属于作业参数而非连接默认配置，最终有效性由build/submit校验。
+初始化后不可变；属于作业参数而非连接默认配置，最终有效性由Manager构建和提交校验。
 
 文档 ID：`apple:symbol:s:10PrinterSDK17ReceiptJobOptionsV14marginLeftDotss6UInt32Vvp`
 
@@ -7110,7 +5546,7 @@ let marginLeftDots: UInt32
 let marginRightDots: UInt32
 ```
 
-初始化后不可变；属于作业参数而非连接默认配置，最终有效性由build/submit校验。
+初始化后不可变；属于作业参数而非连接默认配置，最终有效性由Manager构建和提交校验。
 
 文档 ID：`apple:symbol:s:10PrinterSDK17ReceiptJobOptionsV15marginRightDotss6UInt32Vvp`
 
@@ -7132,7 +5568,7 @@ let marginRightDots: UInt32
 let maxTotalLengthDots: UInt32
 ```
 
-初始化后不可变；属于作业参数而非连接默认配置，最终有效性由build/submit校验。
+初始化后不可变；属于作业参数而非连接默认配置，最终有效性由Manager构建和提交校验。
 
 文档 ID：`apple:symbol:s:10PrinterSDK17ReceiptJobOptionsV18maxTotalLengthDotss6UInt32Vvp`
 
@@ -7154,7 +5590,7 @@ let maxTotalLengthDots: UInt32
 let widthDots: UInt32
 ```
 
-初始化后不可变；属于作业参数而非连接默认配置，最终有效性由build/submit校验。
+初始化后不可变；属于作业参数而非连接默认配置，最终有效性由Manager构建和提交校验。
 
 文档 ID：`apple:symbol:s:10PrinterSDK17ReceiptJobOptionsV9widthDotss6UInt32Vvp`
 
@@ -7180,7 +5616,7 @@ let widthDots: UInt32
 struct ReceiptProfile
 ```
 
-由应用明确提供，硬件最大页长和切刀能力仍未知；不以小票毫米宽度推断打印点宽。整单长度预算在 `submitReceiptGray8(maxTotalLengthDots:)` 中独立提供。构造不进行连接、IO 或硬件认证。 可作为本次操作参数传入，不需要在连接时提供，也不会改变连接或其他操作。
+由应用逐次提供给 Manager，不在连接时保存。硬件最大页长和切刀支持未知，不以纸宽推断打印点宽。整单长度预算由 PreparedPrint 的 ReceiptJobOptions 显式提供。构造不进行连接、IO 或硬件认证。
 
 文档 ID：`apple:symbol:s:10PrinterSDK14ReceiptProfileV`
 
@@ -7252,39 +5688,39 @@ let widthDots: UInt32
 | --- | --- |
 | UInt32 | `s:s6UInt32V` |
 
-<a id="api-ef876e2ccd4fa79506c8"></a>
+<a id="api-98f79d03f589f3f1383b"></a>
 
-## ResourceSnapshot
+## RequestID
 
-<a id="api-c7eec63c89e2fbc86ca7"></a>
+<a id="api-1f4163eebc83ddaebea0"></a>
 
-### ResourceSnapshot
+### RequestID
 
-设备源载荷接纳限制及占用快照。
+仅由原Manager识别的不透明请求标识。
 
 ```swift
-struct ResourceSnapshot
+struct RequestID
 ```
 
-仅为本地观察，不执行 IO，不预留容量；submit 的原子接纳结果为准。数据不是 App 总内存、编码缓冲区大小或打印机硬件容量。终态 operation 保留结果不会继续占用源载荷接纳预算。
+将该值交给返回它的Manager.cancel请求取消；标识本身不持有native任务句柄，也不提供独立打印控制入口。
 
-文档 ID：`apple:symbol:s:10PrinterSDK16ResourceSnapshotV`
+文档 ID：`apple:symbol:s:10PrinterSDK9RequestIDV`
 
 符号种类：`swift.struct`；访问级别：`public`。
 
-<a id="api-700f799593359550c431"></a>
+<a id="api-27a4a4298443bc685dd7"></a>
 
-### ResourceSnapshot.!=(_:_:)
+### RequestID.!=(_:_:)
 
-按值比较两个 ResourceSnapshot 是否不同。
+比较两个只读值是否不同。
 
 ```swift
 static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool
 ```
 
-Swift Equatable 提供的比较，不执行 IO、不刷新状态。比较本次值或枚举，不能把相等的快照当作设备仍在线、硬件正常或纸面打印完成的证明。
+由编译器依据类型的Equatable语义合成；比较不访问设备，不创建打印请求。
 
-文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK16ResourceSnapshotV`
+文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK9RequestIDV`
 
 符号种类：`swift.func.op`；访问级别：`public`。
 
@@ -7301,182 +5737,6 @@ Swift Equatable 提供的比较，不执行 IO、不刷新状态。比较本次�
 | 名称 | precise identifier |
 | --- | --- |
 | Bool | `s:Sb` |
-
-<a id="api-5e313de43ea969df329f"></a>
-
-### ResourceSnapshot.maxCopies
-
-SDK 单作业份数上限。
-
-```swift
-let maxCopies: UInt32
-```
-
-接纳限制，与打印机机械容量或已打印份数无关。
-
-文档 ID：`apple:symbol:s:10PrinterSDK16ResourceSnapshotV9maxCopiess6UInt32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-bbd896dccb6910f4a329"></a>
-
-### ResourceSnapshot.maxImageBytes
-
-单幅图像源像素载荷上限。
-
-```swift
-let maxImageBytes: UInt64
-```
-
-单位字节，提交时复制像素并检查；不等同于图像文件压缩长度。
-
-文档 ID：`apple:symbol:s:10PrinterSDK16ResourceSnapshotV13maxImageBytess6UInt64Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
-
-<a id="api-2dd1865e23d131e32c69"></a>
-
-### ResourceSnapshot.maxJobImageBytes
-
-单个作业的图像源载荷总上限。
-
-```swift
-let maxJobImageBytes: UInt64
-```
-
-单位字节，多个图像相加，不是最终编码输出大小。
-
-文档 ID：`apple:symbol:s:10PrinterSDK16ResourceSnapshotV16maxJobImageBytess6UInt64Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
-
-<a id="api-eef6b18bac08cfd25bf4"></a>
-
-### ResourceSnapshot.maxPendingOperations
-
-设备允许的未终态业务操作上限。
-
-```swift
-let maxPendingOperations: UInt32
-```
-
-包括活动和等待操作；用于展示，提交仍是原子接纳权威。
-
-文档 ID：`apple:symbol:s:10PrinterSDK16ResourceSnapshotV20maxPendingOperationss6UInt32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-8db625384f435445b854"></a>
-
-### ResourceSnapshot.maxPendingPayloadBytes
-
-设备未终态源载荷合计上限。
-
-```swift
-let maxPendingPayloadBytes: UInt64
-```
-
-单位字节，与手机进程总内存、实时空闲内存及打印机容量不同。
-
-文档 ID：`apple:symbol:s:10PrinterSDK16ResourceSnapshotV22maxPendingPayloadBytess6UInt64Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
-
-<a id="api-d245dd07dd8302330165"></a>
-
-### ResourceSnapshot.maxRawBytes
-
-单个 Raw 操作的源字节上限。
-
-```swift
-let maxRawBytes: UInt64
-```
-
-单位字节，提交时检查，不表示协议编码后或打印机内部缓存大小。
-
-文档 ID：`apple:symbol:s:10PrinterSDK16ResourceSnapshotV11maxRawBytess6UInt64Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
-
-<a id="api-0661d9cd0f6fe06c55fd"></a>
-
-### ResourceSnapshot.outstandingOperations
-
-当前未终态业务操作数。
-
-```swift
-let outstandingOperations: UInt32
-```
-
-包括活动与等待操作；不包括已经终态但尚持有结果的 operation。
-
-文档 ID：`apple:symbol:s:10PrinterSDK16ResourceSnapshotV21outstandingOperationss6UInt32Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt32 | `s:s6UInt32V` |
-
-<a id="api-acd5a51fe46219464136"></a>
-
-### ResourceSnapshot.pendingPayloadBytes
-
-当前未终态操作保留的源载荷字节数。
-
-```swift
-let pendingPayloadBytes: UInt64
-```
-
-包括等待和活动操作，终态后释放预算；观察不会锁定剩余容量。
-
-文档 ID：`apple:symbol:s:10PrinterSDK16ResourceSnapshotV19pendingPayloadBytess6UInt64Vvp`
-
-符号种类：`swift.property`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| UInt64 | `s:s6UInt64V` |
 
 <a id="api-313c383cb33723929d18"></a>
 
@@ -7937,18 +6197,155 @@ let queryTimeoutMilliseconds: UInt32
 | --- | --- |
 | UInt32 | `s:s6UInt32V` |
 
+<a id="api-498d0aa8573deb1c5df3"></a>
+
+## StatusResult
+
+<a id="api-29137902e8f73010baa0"></a>
+
+### StatusResult
+
+查询得到的硬件状态值。
+
+```swift
+struct StatusResult
+```
+
+knownConditions指明哪些状态位已知，activeConditions只在相应已知位内有意义；不得把未知位解释为正常，也不能从状态查询推断某次任务已打印完成。
+
+文档 ID：`apple:symbol:s:10PrinterSDK12StatusResultV`
+
+符号种类：`swift.struct`；访问级别：`public`。
+
+<a id="api-0ade4684fd8aff05bb46"></a>
+
+### StatusResult.!=(_:_:)
+
+比较两个只读值是否不同。
+
+```swift
+static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool
+```
+
+由编译器依据类型的Equatable语义合成；比较不访问设备，不创建打印请求。
+
+文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK12StatusResultV`
+
+符号种类：`swift.func.op`；访问级别：`public`。
+
+这是编译器为当前类型带入的协议扩展／合成公共成员。
+
+扩展来源（保留基线原值）：
+
+```json
+{"extendedModule":"Swift","typeKind":"swift.protocol"}
+```
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Bool | `s:Sb` |
+
+<a id="api-446dfe1371a118f39c0e"></a>
+
+### StatusResult.activeConditions
+
+已激活的硬件条件位。
+
+```swift
+let activeConditions: UInt32
+```
+
+与knownConditions组合读取，不能单独将零值解释为所有硬件条件正常。
+
+文档 ID：`apple:symbol:s:10PrinterSDK12StatusResultV16activeConditionss6UInt32Vvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| UInt32 | `s:s6UInt32V` |
+
+<a id="api-23c61d3883ee5c091d8d"></a>
+
+### StatusResult.evidence
+
+状态值的证据类型。
+
+```swift
+let evidence: UInt32
+```
+
+遵循状态查询契约解释；不代表指定打印请求已设备确认完成。
+
+文档 ID：`apple:symbol:s:10PrinterSDK12StatusResultV8evidences6UInt32Vvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| UInt32 | `s:s6UInt32V` |
+
+<a id="api-59f03638dab29ef80c75"></a>
+
+### StatusResult.knownConditions
+
+硬件状态中已知的条件位。
+
+```swift
+let knownConditions: UInt32
+```
+
+只有对应位为已知时，才可解释activeConditions中的该状态；未知不是正常。
+
+文档 ID：`apple:symbol:s:10PrinterSDK12StatusResultV15knownConditionss6UInt32Vvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| UInt32 | `s:s6UInt32V` |
+
+<a id="api-284c156755426b07f0df"></a>
+
+### StatusResult.sampledMonotonicMilliseconds
+
+状态采样的单调时钟毫秒值。
+
+```swift
+let sampledMonotonicMilliseconds: UInt64
+```
+
+仅用于同一时钟域内的相对先后或时效判断，不是UTC时间戳。
+
+文档 ID：`apple:symbol:s:10PrinterSDK12StatusResultV28sampledMonotonicMillisecondss6UInt64Vvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| UInt64 | `s:s6UInt64V` |
+
 ## 枚举声明顺序与 raw 值
 
 顺序来自编译器 AST；raw 值保留符号、类型和值，不用展示顺序代替 raw 值。
 
-### ConnectionState
+### CompletionLevel
 
 | 声明顺序（从 0 起） | case | raw 值 | 编译器原值 |
 | --- | --- | --- | --- |
-| 0 | `disconnected` | `0` | `{"kind":"integer","negative":false,"value":"0"}` |
-| 1 | `connecting` | `1` | `{"kind":"integer","negative":false,"value":"1"}` |
-| 2 | `connected` | `2` | `{"kind":"integer","negative":false,"value":"2"}` |
-| 3 | `disconnecting` | `3` | `{"kind":"integer","negative":false,"value":"3"}` |
+| 0 | `none` | `0` | `{"kind":"integer","negative":false,"value":"0"}` |
+| 1 | `dataSent` | `1` | `{"kind":"integer","negative":false,"value":"1"}` |
+| 2 | `deviceConfirmed` | `2` | `{"kind":"integer","negative":false,"value":"2"}` |
 
 ### CutMode
 
@@ -7958,37 +6355,12 @@ let queryTimeoutMilliseconds: UInt32
 | 1 | `full` | `1` | `{"kind":"integer","negative":false,"value":"1"}` |
 | 2 | `partial` | `2` | `{"kind":"integer","negative":false,"value":"2"}` |
 
-### DeviceWorkState
-
-| 声明顺序（从 0 起） | case | raw 值 | 编译器原值 |
-| --- | --- | --- | --- |
-| 0 | `idle` | `0` | `{"kind":"integer","negative":false,"value":"0"}` |
-| 1 | `queued` | `1` | `{"kind":"integer","negative":false,"value":"1"}` |
-| 2 | `preparing` | `2` | `{"kind":"integer","negative":false,"value":"2"}` |
-| 3 | `sending` | `3` | `{"kind":"integer","negative":false,"value":"3"}` |
-
-### DiagnosticSource
-
-| 声明顺序（从 0 起） | case | raw 值 | 编译器原值 |
-| --- | --- | --- | --- |
-| 0 | `none` | `0` | `{"kind":"integer","negative":false,"value":"0"}` |
-| 1 | `connect` | `1` | `{"kind":"integer","negative":false,"value":"1"}` |
-| 2 | `operation` | `2` | `{"kind":"integer","negative":false,"value":"2"}` |
-| 3 | `transport` | `3` | `{"kind":"integer","negative":false,"value":"3"}` |
-| 4 | `userDisconnect` | `4` | `{"kind":"integer","negative":false,"value":"4"}` |
-
 ### FinishScope
 
 | 声明顺序（从 0 起） | case | raw 值 | 编译器原值 |
 | --- | --- | --- | --- |
 | 0 | `eachCopy` | `0` | `{"kind":"integer","negative":false,"value":"0"}` |
 | 1 | `endOfJob` | `1` | `{"kind":"integer","negative":false,"value":"1"}` |
-
-### HardwareState
-
-| 声明顺序（从 0 起） | case | raw 值 | 编译器原值 |
-| --- | --- | --- | --- |
-| 0 | `unknown` | `0` | `{"kind":"integer","negative":false,"value":"0"}` |
 
 ### ImageAlgorithm
 
@@ -7999,6 +6371,14 @@ let queryTimeoutMilliseconds: UInt32
 | 2 | `bayer4x4` | `2` | `{"kind":"integer","negative":false,"value":"2"}` |
 | 3 | `bayer8x8` | `3` | `{"kind":"integer","negative":false,"value":"3"}` |
 
+### ManagerOutcome
+
+| 声明顺序（从 0 起） | case | raw 值 | 编译器原值 |
+| --- | --- | --- | --- |
+| 0 | `success` | `无 raw 值` | `null` |
+| 1 | `failure` | `无 raw 值` | `null` |
+| 2 | `cancelled` | `无 raw 值` | `null` |
+
 ### MediaMode
 
 | 声明顺序（从 0 起） | case | raw 值 | 编译器原值 |
@@ -8006,6 +6386,13 @@ let queryTimeoutMilliseconds: UInt32
 | 0 | `gap` | `1` | `{"kind":"integer","negative":false,"value":"1"}` |
 | 1 | `blackMark` | `2` | `{"kind":"integer","negative":false,"value":"2"}` |
 | 2 | `continuous` | `3` | `{"kind":"integer","negative":false,"value":"3"}` |
+
+### MediaPersistencePolicy
+
+| 声明顺序（从 0 起） | case | raw 值 | 编译器原值 |
+| --- | --- | --- | --- |
+| 0 | `volatileOnly` | `0` | `{"kind":"integer","negative":false,"value":"0"}` |
+| 1 | `allowPersistent` | `1` | `{"kind":"integer","negative":false,"value":"1"}` |
 
 ### MediaVerificationPolicy
 
@@ -8021,6 +6408,13 @@ let queryTimeoutMilliseconds: UInt32
 | 0 | `gray8` | `1` | `{"kind":"integer","negative":false,"value":"1"}` |
 | 1 | `rgb24` | `2` | `{"kind":"integer","negative":false,"value":"2"}` |
 | 2 | `rgba32` | `3` | `{"kind":"integer","negative":false,"value":"3"}` |
+
+### PrintElement
+
+| 声明顺序（从 0 起） | case | raw 值 | 编译器原值 |
+| --- | --- | --- | --- |
+| 0 | `image(_:x:y:)` | `无 raw 值` | `null` |
+| 1 | `blank(dots:)` | `无 raw 值` | `null` |
 
 ### PrinterConstraint
 
@@ -8053,15 +6447,13 @@ let queryTimeoutMilliseconds: UInt32
 
 ## 编译器公共关系
 
-完整保留 **447** 条继承、协议遵循、成员及合成关系；
+完整保留 **359** 条继承、协议遵循、成员及合成关系；
 source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型也保持原值。
 
 | kind | source | target | 其他编译器字段 |
 | --- | --- | --- | --- |
 | `conformsTo` | `s:10PrinterSDK010DiscoveredA0V` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK010DiscoveredA0V` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK06MobileA0C` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK06MobileA0C` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK0A10ConstraintO` | `s:SH` | `{}` |
 | `conformsTo` | `s:10PrinterSDK0A10ConstraintO` | `s:SQ` | `{}` |
 | `conformsTo` | `s:10PrinterSDK0A10ConstraintO` | `s:SY` | `{}` |
@@ -8069,8 +6461,6 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `conformsTo` | `s:10PrinterSDK0A10ConstraintO` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK0A12CapabilitiesV` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK0A12CapabilitiesV` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK0A5ImageC` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK0A5ImageC` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK0A7FeatureO` | `s:SH` | `{}` |
 | `conformsTo` | `s:10PrinterSDK0A7FeatureO` | `s:SQ` | `{}` |
 | `conformsTo` | `s:10PrinterSDK0A7FeatureO` | `s:SY` | `{}` |
@@ -8093,8 +6483,6 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `conformsTo` | `s:10PrinterSDK0A8SDKErrorV` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK10BLEOptionsV` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK10BLEOptionsV` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK10BLEScannerC` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK10BLEScannerC` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK11CpclProfileV` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK11CpclProfileV` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK11FinishScopeO` | `s:SH` | `{}` |
@@ -8107,11 +6495,19 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `conformsTo` | `s:10PrinterSDK11PixelFormatO` | `s:SY` | `{}` |
 | `conformsTo` | `s:10PrinterSDK11PixelFormatO` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK11PixelFormatO` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK13HardwareStateO` | `s:SH` | `{}` |
-| `conformsTo` | `s:10PrinterSDK13HardwareStateO` | `s:SQ` | `{}` |
-| `conformsTo` | `s:10PrinterSDK13HardwareStateO` | `s:SY` | `{}` |
-| `conformsTo` | `s:10PrinterSDK13HardwareStateO` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK13HardwareStateO` | `s:s8SendableP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK12PrintElementO` | `s:s16SendableMetatypeP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK12PrintElementO` | `s:s8SendableP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK12PrintOptionsV` | `s:s16SendableMetatypeP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK12PrintOptionsV` | `s:s8SendableP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK12StatusResultV` | `s:SQ` | `{}` |
+| `conformsTo` | `s:10PrinterSDK12StatusResultV` | `s:s16SendableMetatypeP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK12StatusResultV` | `s:s8SendableP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK13ManagerResultV` | `s:s16SendableMetatypeP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK13ManagerResultV` | `s:s8SendableP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK13MediaSettingsV` | `s:s16SendableMetatypeP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK13MediaSettingsV` | `s:s8SendableP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK13PreparedPrintV` | `s:s16SendableMetatypeP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK13PreparedPrintV` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK14FeatureSupportV` | `s:SQ` | `{}` |
 | `conformsTo` | `s:10PrinterSDK14FeatureSupportV` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK14FeatureSupportV` | `s:s8SendableP` | `{}` |
@@ -8120,69 +6516,47 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `conformsTo` | `s:10PrinterSDK14ImageAlgorithmO` | `s:SY` | `{}` |
 | `conformsTo` | `s:10PrinterSDK14ImageAlgorithmO` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK14ImageAlgorithmO` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK14PrintOperationC` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK14PrintOperationC` | `s:s8SendableP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK14ManagerOutcomeO` | `s:SH` | `{}` |
+| `conformsTo` | `s:10PrinterSDK14ManagerOutcomeO` | `s:SQ` | `{}` |
+| `conformsTo` | `s:10PrinterSDK14ManagerOutcomeO` | `s:s16SendableMetatypeP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK14ManagerOutcomeO` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK14ReceiptProfileV` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK14ReceiptProfileV` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK15ConnectionStateO` | `s:SH` | `{}` |
-| `conformsTo` | `s:10PrinterSDK15ConnectionStateO` | `s:SQ` | `{}` |
-| `conformsTo` | `s:10PrinterSDK15ConnectionStateO` | `s:SY` | `{}` |
-| `conformsTo` | `s:10PrinterSDK15ConnectionStateO` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK15ConnectionStateO` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK15DeviceWorkStateO` | `s:SH` | `{}` |
-| `conformsTo` | `s:10PrinterSDK15DeviceWorkStateO` | `s:SQ` | `{}` |
-| `conformsTo` | `s:10PrinterSDK15DeviceWorkStateO` | `s:SY` | `{}` |
-| `conformsTo` | `s:10PrinterSDK15DeviceWorkStateO` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK15DeviceWorkStateO` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK15ErrorDiagnosticV` | `s:SQ` | `{}` |
-| `conformsTo` | `s:10PrinterSDK15ErrorDiagnosticV` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK15ErrorDiagnosticV` | `s:s8SendableP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK15CompletionLevelO` | `s:SH` | `{}` |
+| `conformsTo` | `s:10PrinterSDK15CompletionLevelO` | `s:SQ` | `{}` |
+| `conformsTo` | `s:10PrinterSDK15CompletionLevelO` | `s:SY` | `{}` |
+| `conformsTo` | `s:10PrinterSDK15CompletionLevelO` | `s:s16SendableMetatypeP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK15CompletionLevelO` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK15LabelJobOptionsV` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK15LabelJobOptionsV` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK15OperationResultV` | `s:SQ` | `{}` |
-| `conformsTo` | `s:10PrinterSDK15OperationResultV` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK15OperationResultV` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK16DiagnosticSourceO` | `s:SH` | `{}` |
-| `conformsTo` | `s:10PrinterSDK16DiagnosticSourceO` | `s:SQ` | `{}` |
-| `conformsTo` | `s:10PrinterSDK16DiagnosticSourceO` | `s:SY` | `{}` |
-| `conformsTo` | `s:10PrinterSDK16DiagnosticSourceO` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK16DiagnosticSourceO` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK16MediaRequirementV` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK16MediaRequirementV` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK16ResourceSnapshotV` | `s:SQ` | `{}` |
-| `conformsTo` | `s:10PrinterSDK16ResourceSnapshotV` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK16ResourceSnapshotV` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK16ScalarConstraintV` | `s:SQ` | `{}` |
 | `conformsTo` | `s:10PrinterSDK16ScalarConstraintV` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK16ScalarConstraintV` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK17OperationSnapshotV` | `s:SQ` | `{}` |
-| `conformsTo` | `s:10PrinterSDK17OperationSnapshotV` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK17OperationSnapshotV` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK17ReceiptJobOptionsV` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK17ReceiptJobOptionsV` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK19DeviceStateSnapshotV` | `s:SQ` | `{}` |
-| `conformsTo` | `s:10PrinterSDK19DeviceStateSnapshotV` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK19DeviceStateSnapshotV` | `s:s8SendableP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK19CancellationContextC` | `s:s16SendableMetatypeP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK19CancellationContextC` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK20BLECreditFlowControlV` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK20BLECreditFlowControlV` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK20HardwareStatusResultV` | `s:SQ` | `{}` |
-| `conformsTo` | `s:10PrinterSDK20HardwareStatusResultV` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK20HardwareStatusResultV` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK20ReceiptFinishOptionsV` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK20ReceiptFinishOptionsV` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK21DeviceActiveOperationV` | `s:SQ` | `{}` |
-| `conformsTo` | `s:10PrinterSDK21DeviceActiveOperationV` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK21DeviceActiveOperationV` | `s:s8SendableP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK22MediaPersistencePolicyO` | `s:SH` | `{}` |
+| `conformsTo` | `s:10PrinterSDK22MediaPersistencePolicyO` | `s:SQ` | `{}` |
+| `conformsTo` | `s:10PrinterSDK22MediaPersistencePolicyO` | `s:SY` | `{}` |
+| `conformsTo` | `s:10PrinterSDK22MediaPersistencePolicyO` | `s:s16SendableMetatypeP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK22MediaPersistencePolicyO` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK23MediaVerificationPolicyO` | `s:SH` | `{}` |
 | `conformsTo` | `s:10PrinterSDK23MediaVerificationPolicyO` | `s:SQ` | `{}` |
 | `conformsTo` | `s:10PrinterSDK23MediaVerificationPolicyO` | `s:SY` | `{}` |
 | `conformsTo` | `s:10PrinterSDK23MediaVerificationPolicyO` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK23MediaVerificationPolicyO` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK23ObservationSubscriptionC` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK23ObservationSubscriptionC` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK24StatusQueryConfigurationV` | `s:SQ` | `{}` |
 | `conformsTo` | `s:10PrinterSDK24StatusQueryConfigurationV` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK24StatusQueryConfigurationV` | `s:s8SendableP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK6PixelsC` | `s:s16SendableMetatypeP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK6PixelsC` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK7CutModeO` | `s:SH` | `{}` |
 | `conformsTo` | `s:10PrinterSDK7CutModeO` | `s:SQ` | `{}` |
 | `conformsTo` | `s:10PrinterSDK7CutModeO` | `s:SY` | `{}` |
@@ -8191,16 +6565,16 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `conformsTo` | `s:10PrinterSDK7SDKInfoV` | `s:SQ` | `{}` |
 | `conformsTo` | `s:10PrinterSDK7SDKInfoV` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK7SDKInfoV` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK8PrintJobC` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK8PrintJobC` | `s:s8SendableP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK8PrintJobC7BuilderC` | `s:s16SendableMetatypeP` | `{}` |
-| `conformsTo` | `s:10PrinterSDK8PrintJobC7BuilderC` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK9MediaModeO` | `s:SH` | `{}` |
 | `conformsTo` | `s:10PrinterSDK9MediaModeO` | `s:SQ` | `{}` |
 | `conformsTo` | `s:10PrinterSDK9MediaModeO` | `s:SY` | `{}` |
 | `conformsTo` | `s:10PrinterSDK9MediaModeO` | `s:s12CaseIterableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK9MediaModeO` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK9MediaModeO` | `s:s8SendableP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK9RequestIDV` | `s:SH` | `{}` |
+| `conformsTo` | `s:10PrinterSDK9RequestIDV` | `s:SQ` | `{}` |
+| `conformsTo` | `s:10PrinterSDK9RequestIDV` | `s:s16SendableMetatypeP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK9RequestIDV` | `s:s8SendableP` | `{}` |
 | `memberOf` | `s:10Foundation14LocalizedErrorPAAE10helpAnchorSSSgvp::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV` | `s:10PrinterSDK0A8SDKErrorV` | `{"sourceOrigin":{"displayName":"LocalizedError.helpAnchor","identifier":"s:10Foundation14LocalizedErrorP10helpAnchorSSSgvp"}}` |
 | `memberOf` | `s:10Foundation14LocalizedErrorPAAE13failureReasonSSSgvp::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV` | `s:10PrinterSDK0A8SDKErrorV` | `{"sourceOrigin":{"displayName":"LocalizedError.failureReason","identifier":"s:10Foundation14LocalizedErrorP13failureReasonSSSgvp"}}` |
 | `memberOf` | `s:10Foundation14LocalizedErrorPAAE18recoverySuggestionSSSgvp::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV` | `s:10PrinterSDK0A8SDKErrorV` | `{"sourceOrigin":{"displayName":"LocalizedError.recoverySuggestion","identifier":"s:10Foundation14LocalizedErrorP18recoverySuggestionSSSgvp"}}` |
@@ -8208,26 +6582,6 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:10PrinterSDK010DiscoveredA0V18advertisedServicesSaySSGvp` | `s:10PrinterSDK010DiscoveredA0V` | `{}` |
 | `memberOf` | `s:10PrinterSDK010DiscoveredA0V4nameSSSgvp` | `s:10PrinterSDK010DiscoveredA0V` | `{}` |
 | `memberOf` | `s:10PrinterSDK010DiscoveredA0V4rssiSivp` | `s:10PrinterSDK010DiscoveredA0V` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C10constraintyAA16ScalarConstraintVAA0aF0OKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C10diagnosticAA15ErrorDiagnosticVyKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C10disconnectyyKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C11queryStatus13configuration19timeoutMillisecondsAA14PrintOperationCAA0E18QueryConfigurationV_s6UInt32VtKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C11submitGray8_5width6height7profile6copies17trailingBlankDots011canvasWidthL011originXDots4form19timeoutMillisecondsAA14PrintOperationC10Foundation4DataV_s6UInt32VAtA11CpclProfileVA3TSgAWSbSgATtKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C12capabilitiesAA0A12CapabilitiesVyKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C12observeState5queue_AA23ObservationSubscriptionCSo012OS_dispatch_F0C_yAA06DeviceE8SnapshotVYbctKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C12setMediaMode_7profile19timeoutMillisecondsAA14PrintOperationCAA0eF0O_AA11CpclProfileVs6UInt32VtKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C13bleIdentifier7optionsAC10Foundation4UUIDV_AA10BLEOptionsVtKcfc` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C13stateSnapshotAA011DeviceStateE0VyKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C15connectionStateAA010ConnectionE0OyKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C15feedToNextLabel7profile19timeoutMillisecondsAA14PrintOperationCAA11CpclProfileV_s6UInt32VtKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C16resourceSnapshotAA08ResourceE0VyKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C18submitReceiptGray8_5width6height7profile6copies18maxTotalLengthDots013trailingBlankN03cut11finishScope19timeoutMillisecondsAA14PrintOperationC10Foundation4DataV_s6UInt32VAtA0E7ProfileVA3tA7CutModeOAA06FinishS0OATtKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C5closeyyF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C6submit_7profile19timeoutMillisecondsAA14PrintOperationCAA0H3JobC_AA11CpclProfileVs6UInt32VtKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C6submit_7profile19timeoutMillisecondsAA14PrintOperationCAA0H3JobC_AA14ReceiptProfileVs6UInt32VtKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C7connect19timeoutMillisecondsys6UInt32V_tKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C7featureyAA14FeatureSupportVAA0aE0OKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
-| `memberOf` | `s:10PrinterSDK06MobileA0C9submitRaw_6copies19timeoutMillisecondsAA14PrintOperationC10Foundation4DataV_s6UInt32VAMtKF` | `s:10PrinterSDK06MobileA0C` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A10ConstraintO13jobImageBytesyA2CmF` | `s:10PrinterSDK0A10ConstraintO` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A10ConstraintO19mediaGapMicrometersyA2CmF` | `s:10PrinterSDK0A10ConstraintO` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A10ConstraintO19pendingPayloadBytesyA2CmF` | `s:10PrinterSDK0A10ConstraintO` | `{}` |
@@ -8236,9 +6590,6 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:10PrinterSDK0A12CapabilitiesV11constraintsSDyAA0A10ConstraintOAA06ScalarE0VGvp` | `s:10PrinterSDK0A12CapabilitiesV` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A12CapabilitiesV8featuresSDyAA0A7FeatureOAA0E7SupportVGvp` | `s:10PrinterSDK0A12CapabilitiesV` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A12CapabilitiesV8geometryAA0A8GeometryVvp` | `s:10PrinterSDK0A12CapabilitiesV` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A5ImageC5widths6UInt32Vvp` | `s:10PrinterSDK0A5ImageC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A5ImageC6heights6UInt32Vvp` | `s:10PrinterSDK0A5ImageC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A5ImageC6pixels5width6height6format9algorithm9threshold6invert8fitWidth06targetL4DotsAC10Foundation4DataV_s6UInt32VAqA11PixelFormatOAA0C9AlgorithmOAQS2bAQtKcfc` | `s:10PrinterSDK0A5ImageC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7FeatureO15feedToNextLabelyA2CmF` | `s:10PrinterSDK0A7FeatureO` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7FeatureO3cutyA2CmF` | `s:10PrinterSDK0A7FeatureO` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7FeatureO3rawyA2CmF` | `s:10PrinterSDK0A7FeatureO` | `{}` |
@@ -8248,11 +6599,21 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:10PrinterSDK0A7FeatureO6statusyA2CmF` | `s:10PrinterSDK0A7FeatureO` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7FeatureO7receiptyA2CmF` | `s:10PrinterSDK0A7FeatureO` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7FeatureO8rawValueACSgs6UInt32V_tcfc` | `s:10PrinterSDK0A7FeatureO` | `{"sourceOrigin":{"displayName":"RawRepresentable.init(rawValue:)","identifier":"s:SY8rawValuexSg03RawB0Qz_tcfc"}}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC5closeyyYaF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC6sharedACvpZ` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC7connect_19timeoutMillisecondsyAA06MobileA0C_s6UInt32VtYaKF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC7printer13bleIdentifier7optionsAA06MobileA0C10Foundation4UUIDV_AA10BLEOptionsVtKF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC7releaseyyAA06MobileA0CYaF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC10disconnect10completionAA9RequestIDVyAA0C6ResultVyytGYbc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC11queryStatus13configuration19timeoutMilliseconds10completionAA9RequestIDVAA0E18QueryConfigurationV_s6UInt32VyAA0C6ResultVyAA0eO0VGYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC12capabilities10completionAA9RequestIDVyAA0C6ResultVyAA0A12CapabilitiesVGYbc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC12setMediaMode_7profile19timeoutMilliseconds10completionAA9RequestIDVAA0eF0O_AA11CpclProfileVs6UInt32VyAA0C6ResultVyytGYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC13bondedDevices10completionAA9RequestIDVyAA0C6ResultVySayAA010DiscoveredA0VGGYbc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC15feedToNextLabel7profile19timeoutMilliseconds10completionAA9RequestIDVAA11CpclProfileV_s6UInt32VyAA0C6ResultVyytGYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC5close10completionAA9RequestIDVyAA0C6ResultVyytGYbc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC5print7profile7options11preparation10completionAA9RequestIDVAA11CpclProfileV_AA12PrintOptionsVAA08PreparedM0VAA19CancellationContextCYbKcyAA0C6ResultVyytGYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC5print7profile7options11preparation10completionAA9RequestIDVAA14ReceiptProfileV_AA12PrintOptionsVAA08PreparedM0VAA19CancellationContextCYbKcyAA0C6ResultVyytGYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC6cancelyyAA9RequestIDVF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC7connect13bleIdentifier7options19timeoutMilliseconds10completion14onDisconnectedAA9RequestIDV10Foundation4UUIDV_AA10BLEOptionsVs6UInt32VyAA0C6ResultVyytGYbcyAUYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC7scanBLE7seconds7service10completionAA9RequestIDVSd_10Foundation4UUIDVSgyAA0C6ResultVySayAA010DiscoveredA0VGGYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC7sdkInfo10completionAA9RequestIDVyAA0C6ResultVyAA7SDKInfoVGYbc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC7sendRaw_6copies19timeoutMilliseconds10completionAA9RequestIDV10Foundation4DataV_s6UInt32VANyAA0C6ResultVyytGYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC8setMedia_7profile19timeoutMilliseconds10completionAA9RequestIDVAA0E8SettingsV_AA11CpclProfileVs6UInt32VyAA0C6ResultVyytGYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7ManagerCACycfc` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A8GeometryV15minCutBlankDotss6UInt32VSgvp` | `s:10PrinterSDK0A8GeometryV` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A8GeometryV17maxPageLengthDotss6UInt32VSgvp` | `s:10PrinterSDK0A8GeometryV` | `{}` |
@@ -8263,11 +6624,9 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:10PrinterSDK0A8ProtocolO4cpclyA2CmF` | `s:10PrinterSDK0A8ProtocolO` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A8ProtocolO6escposyA2CmF` | `s:10PrinterSDK0A8ProtocolO` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A8ProtocolO8rawValueACSgs6UInt32V_tcfc` | `s:10PrinterSDK0A8ProtocolO` | `{"sourceOrigin":{"displayName":"RawRepresentable.init(rawValue:)","identifier":"s:SY8rawValuexSg03RawB0Qz_tcfc"}}` |
-| `memberOf` | `s:10PrinterSDK0A8SDKErrorV10diagnosticAA15ErrorDiagnosticVSgvp` | `s:10PrinterSDK0A8SDKErrorV` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A8SDKErrorV16errorDescriptionSSSgvp` | `s:10PrinterSDK0A8SDKErrorV` | `{"sourceOrigin":{"displayName":"LocalizedError.errorDescription","identifier":"s:10Foundation14LocalizedErrorP16errorDescriptionSSSgvp"}}` |
 | `memberOf` | `s:10PrinterSDK0A8SDKErrorV2eeoiySbAC_ACtFZ` | `s:10PrinterSDK0A8SDKErrorV` | `{"sourceOrigin":{"displayName":"Equatable.==(_:_:)","identifier":"s:SQ2eeoiySbx_xtFZ"}}` |
 | `memberOf` | `s:10PrinterSDK0A8SDKErrorV4codes5Int32Vvp` | `s:10PrinterSDK0A8SDKErrorV` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A8SDKErrorV_10diagnosticACs5Int32V_AA15ErrorDiagnosticVSgtcfc` | `s:10PrinterSDK0A8SDKErrorV` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A8SDKErrorVyACs5Int32Vcfc` | `s:10PrinterSDK0A8SDKErrorV` | `{}` |
 | `memberOf` | `s:10PrinterSDK10BLEOptionsV12withResponseSbvp` | `s:10PrinterSDK10BLEOptionsV` | `{}` |
 | `memberOf` | `s:10PrinterSDK10BLEOptionsV13maxWriteBytesSivp` | `s:10PrinterSDK10BLEOptionsV` | `{}` |
@@ -8275,9 +6634,6 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:10PrinterSDK10BLEOptionsV19writeCharacteristic10Foundation4UUIDVvp` | `s:10PrinterSDK10BLEOptionsV` | `{}` |
 | `memberOf` | `s:10PrinterSDK10BLEOptionsV7service10Foundation4UUIDVvp` | `s:10PrinterSDK10BLEOptionsV` | `{}` |
 | `memberOf` | `s:10PrinterSDK10BLEOptionsV7service19writeCharacteristic12withResponse13maxWriteBytes17creditFlowControlAC10Foundation4UUIDV_AKSbSiAA09BLECreditmN0VSgtKcfc` | `s:10PrinterSDK10BLEOptionsV` | `{}` |
-| `memberOf` | `s:10PrinterSDK10BLEScannerC4scan7seconds7service10completionySd_10Foundation4UUIDVSgys6ResultOySayAA010DiscoveredA0VGAA0A8SDKErrorVGYbctF` | `s:10PrinterSDK10BLEScannerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK10BLEScannerC4stopyyF` | `s:10PrinterSDK10BLEScannerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK10BLEScannerCACycfc` | `s:10PrinterSDK10BLEScannerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK10M90ProfileO10bleOptions13maxWriteBytesAA10BLEOptionsVSi_tKFZ` | `s:10PrinterSDK10M90ProfileO` | `{}` |
 | `memberOf` | `s:10PrinterSDK11CpclProfileV11xOffsetDotss6UInt32Vvp` | `s:10PrinterSDK11CpclProfileV` | `{}` |
 | `memberOf` | `s:10PrinterSDK11CpclProfileV18maxLabelHeightDotss6UInt32Vvp` | `s:10PrinterSDK11CpclProfileV` | `{}` |
@@ -8292,8 +6648,32 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:10PrinterSDK11PixelFormatO5rgb24yA2CmF` | `s:10PrinterSDK11PixelFormatO` | `{}` |
 | `memberOf` | `s:10PrinterSDK11PixelFormatO6rgba32yA2CmF` | `s:10PrinterSDK11PixelFormatO` | `{}` |
 | `memberOf` | `s:10PrinterSDK11PixelFormatO8rawValueACSgs6UInt32V_tcfc` | `s:10PrinterSDK11PixelFormatO` | `{"sourceOrigin":{"displayName":"RawRepresentable.init(rawValue:)","identifier":"s:SY8rawValuexSg03RawB0Qz_tcfc"}}` |
-| `memberOf` | `s:10PrinterSDK13HardwareStateO7unknownyA2CmF` | `s:10PrinterSDK13HardwareStateO` | `{}` |
-| `memberOf` | `s:10PrinterSDK13HardwareStateO8rawValueACSgs6UInt32V_tcfc` | `s:10PrinterSDK13HardwareStateO` | `{"sourceOrigin":{"displayName":"RawRepresentable.init(rawValue:)","identifier":"s:SY8rawValuexSg03RawB0Qz_tcfc"}}` |
+| `memberOf` | `s:10PrinterSDK12PrintElementO5blankyACs6UInt32V_tcACmF` | `s:10PrinterSDK12PrintElementO` | `{}` |
+| `memberOf` | `s:10PrinterSDK12PrintElementO5imageyAcA6PixelsC_s5Int32VAHtcACmF` | `s:10PrinterSDK12PrintElementO` | `{}` |
+| `memberOf` | `s:10PrinterSDK12PrintOptionsV19timeoutMillisecondsACs6UInt32V_tcfc` | `s:10PrinterSDK12PrintOptionsV` | `{}` |
+| `memberOf` | `s:10PrinterSDK12PrintOptionsV19timeoutMillisecondss6UInt32Vvp` | `s:10PrinterSDK12PrintOptionsV` | `{}` |
+| `memberOf` | `s:10PrinterSDK12StatusResultV15knownConditionss6UInt32Vvp` | `s:10PrinterSDK12StatusResultV` | `{}` |
+| `memberOf` | `s:10PrinterSDK12StatusResultV16activeConditionss6UInt32Vvp` | `s:10PrinterSDK12StatusResultV` | `{}` |
+| `memberOf` | `s:10PrinterSDK12StatusResultV28sampledMonotonicMillisecondss6UInt64Vvp` | `s:10PrinterSDK12StatusResultV` | `{}` |
+| `memberOf` | `s:10PrinterSDK12StatusResultV8evidences6UInt32Vvp` | `s:10PrinterSDK12StatusResultV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13ManagerResultV10completionAA15CompletionLevelOvp` | `s:10PrinterSDK13ManagerResultV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13ManagerResultV21outputMayHaveOccurredSbvp` | `s:10PrinterSDK13ManagerResultV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13ManagerResultV4codes5Int32Vvp` | `s:10PrinterSDK13ManagerResultV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13ManagerResultV5valuexSgvp` | `s:10PrinterSDK13ManagerResultV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13ManagerResultV7messageSSvp` | `s:10PrinterSDK13ManagerResultV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13ManagerResultV7outcomeAA0C7OutcomeOvp` | `s:10PrinterSDK13ManagerResultV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13ManagerResultV9isSuccessSbvp` | `s:10PrinterSDK13ManagerResultV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13ManagerResultV9requestIDAA07RequestF0Vvp` | `s:10PrinterSDK13ManagerResultV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13MediaSettingsV11persistenceAA0C17PersistencePolicyOvp` | `s:10PrinterSDK13MediaSettingsV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13MediaSettingsV16widthMicrometerss6UInt32VSgvp` | `s:10PrinterSDK13MediaSettingsV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13MediaSettingsV20gapLengthMicrometerss6UInt32VSgvp` | `s:10PrinterSDK13MediaSettingsV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13MediaSettingsV21markLengthMicrometerss6UInt32VSgvp` | `s:10PrinterSDK13MediaSettingsV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13MediaSettingsV21markOffsetMicrometerss5Int32VSgvp` | `s:10PrinterSDK13MediaSettingsV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13MediaSettingsV22labelLengthMicrometerss6UInt32VSgvp` | `s:10PrinterSDK13MediaSettingsV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13MediaSettingsV8tracking16widthMicrometers011labelLengthG003gapiG004markiG00k6OffsetG011persistenceAcA0C4ModeOSg_s6UInt32VSgA3Ps5Int32VSgAA0C17PersistencePolicyOtcfc` | `s:10PrinterSDK13MediaSettingsV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13MediaSettingsV8trackingAA0C4ModeOSgvp` | `s:10PrinterSDK13MediaSettingsV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13PreparedPrintV5label8elements16mediaRequirementAcA15LabelJobOptionsV_SayAA0D7ElementOGAA05MediaH0VSgtcfc` | `s:10PrinterSDK13PreparedPrintV` | `{}` |
+| `memberOf` | `s:10PrinterSDK13PreparedPrintV7receipt8elements6finish16mediaRequirementAcA17ReceiptJobOptionsV_SayAA0D7ElementOGAA0j6FinishL0VAA05MediaI0VSgtcfc` | `s:10PrinterSDK13PreparedPrintV` | `{}` |
 | `memberOf` | `s:10PrinterSDK14FeatureSupportV06deviceD0s6UInt32Vvp` | `s:10PrinterSDK14FeatureSupportV` | `{}` |
 | `memberOf` | `s:10PrinterSDK14FeatureSupportV11isSupportedSbvp` | `s:10PrinterSDK14FeatureSupportV` | `{}` |
 | `memberOf` | `s:10PrinterSDK14FeatureSupportV11knownFieldss6UInt32Vvp` | `s:10PrinterSDK14FeatureSupportV` | `{}` |
@@ -8308,38 +6688,16 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:10PrinterSDK14ImageAlgorithmO8bayer8x8yA2CmF` | `s:10PrinterSDK14ImageAlgorithmO` | `{}` |
 | `memberOf` | `s:10PrinterSDK14ImageAlgorithmO8rawValueACSgs6UInt32V_tcfc` | `s:10PrinterSDK14ImageAlgorithmO` | `{"sourceOrigin":{"displayName":"RawRepresentable.init(rawValue:)","identifier":"s:SY8rawValuexSg03RawB0Qz_tcfc"}}` |
 | `memberOf` | `s:10PrinterSDK14ImageAlgorithmO9thresholdyA2CmF` | `s:10PrinterSDK14ImageAlgorithmO` | `{}` |
-| `memberOf` | `s:10PrinterSDK14PrintOperationC10diagnosticAA15ErrorDiagnosticVyKF` | `s:10PrinterSDK14PrintOperationC` | `{}` |
-| `memberOf` | `s:10PrinterSDK14PrintOperationC10onComplete5queue_AA23ObservationSubscriptionCSo012OS_dispatch_G0C_yAA0D6ResultVYbctKF` | `s:10PrinterSDK14PrintOperationC` | `{}` |
-| `memberOf` | `s:10PrinterSDK14PrintOperationC12statusResultAA014HardwareStatusF0VyKF` | `s:10PrinterSDK14PrintOperationC` | `{}` |
-| `memberOf` | `s:10PrinterSDK14PrintOperationC2ids6UInt64Vvp` | `s:10PrinterSDK14PrintOperationC` | `{}` |
-| `memberOf` | `s:10PrinterSDK14PrintOperationC5closeyyF` | `s:10PrinterSDK14PrintOperationC` | `{}` |
-| `memberOf` | `s:10PrinterSDK14PrintOperationC6cancelyyKF` | `s:10PrinterSDK14PrintOperationC` | `{}` |
-| `memberOf` | `s:10PrinterSDK14PrintOperationC6resultAA0D6ResultVyKF` | `s:10PrinterSDK14PrintOperationC` | `{}` |
-| `memberOf` | `s:10PrinterSDK14PrintOperationC7messageSSyKF` | `s:10PrinterSDK14PrintOperationC` | `{}` |
-| `memberOf` | `s:10PrinterSDK14PrintOperationC8snapshotAA0D8SnapshotVyKF` | `s:10PrinterSDK14PrintOperationC` | `{}` |
+| `memberOf` | `s:10PrinterSDK14ManagerOutcomeO7failureyA2CmF` | `s:10PrinterSDK14ManagerOutcomeO` | `{}` |
+| `memberOf` | `s:10PrinterSDK14ManagerOutcomeO7successyA2CmF` | `s:10PrinterSDK14ManagerOutcomeO` | `{}` |
+| `memberOf` | `s:10PrinterSDK14ManagerOutcomeO9cancelledyA2CmF` | `s:10PrinterSDK14ManagerOutcomeO` | `{}` |
 | `memberOf` | `s:10PrinterSDK14ReceiptProfileV3dpi9widthDotsACs6UInt32V_AGtKcfc` | `s:10PrinterSDK14ReceiptProfileV` | `{}` |
 | `memberOf` | `s:10PrinterSDK14ReceiptProfileV3dpis6UInt32Vvp` | `s:10PrinterSDK14ReceiptProfileV` | `{}` |
 | `memberOf` | `s:10PrinterSDK14ReceiptProfileV9widthDotss6UInt32Vvp` | `s:10PrinterSDK14ReceiptProfileV` | `{}` |
-| `memberOf` | `s:10PrinterSDK15ConnectionStateO10connectingyA2CmF` | `s:10PrinterSDK15ConnectionStateO` | `{}` |
-| `memberOf` | `s:10PrinterSDK15ConnectionStateO12disconnectedyA2CmF` | `s:10PrinterSDK15ConnectionStateO` | `{}` |
-| `memberOf` | `s:10PrinterSDK15ConnectionStateO13disconnectingyA2CmF` | `s:10PrinterSDK15ConnectionStateO` | `{}` |
-| `memberOf` | `s:10PrinterSDK15ConnectionStateO8rawValueACSgs6UInt32V_tcfc` | `s:10PrinterSDK15ConnectionStateO` | `{"sourceOrigin":{"displayName":"RawRepresentable.init(rawValue:)","identifier":"s:SY8rawValuexSg03RawB0Qz_tcfc"}}` |
-| `memberOf` | `s:10PrinterSDK15ConnectionStateO9connectedyA2CmF` | `s:10PrinterSDK15ConnectionStateO` | `{}` |
-| `memberOf` | `s:10PrinterSDK15DeviceWorkStateO4idleyA2CmF` | `s:10PrinterSDK15DeviceWorkStateO` | `{}` |
-| `memberOf` | `s:10PrinterSDK15DeviceWorkStateO6queuedyA2CmF` | `s:10PrinterSDK15DeviceWorkStateO` | `{}` |
-| `memberOf` | `s:10PrinterSDK15DeviceWorkStateO7sendingyA2CmF` | `s:10PrinterSDK15DeviceWorkStateO` | `{}` |
-| `memberOf` | `s:10PrinterSDK15DeviceWorkStateO8rawValueACSgs6UInt32V_tcfc` | `s:10PrinterSDK15DeviceWorkStateO` | `{"sourceOrigin":{"displayName":"RawRepresentable.init(rawValue:)","identifier":"s:SY8rawValuexSg03RawB0Qz_tcfc"}}` |
-| `memberOf` | `s:10PrinterSDK15DeviceWorkStateO9preparingyA2CmF` | `s:10PrinterSDK15DeviceWorkStateO` | `{}` |
-| `memberOf` | `s:10PrinterSDK15ErrorDiagnosticV10nativeCodes5Int64VSgvp` | `s:10PrinterSDK15ErrorDiagnosticV` | `{}` |
-| `memberOf` | `s:10PrinterSDK15ErrorDiagnosticV11operationIDs6UInt64Vvp` | `s:10PrinterSDK15ErrorDiagnosticV` | `{}` |
-| `memberOf` | `s:10PrinterSDK15ErrorDiagnosticV14transportEpochs6UInt64Vvp` | `s:10PrinterSDK15ErrorDiagnosticV` | `{}` |
-| `memberOf` | `s:10PrinterSDK15ErrorDiagnosticV20connectionGenerations6UInt64Vvp` | `s:10PrinterSDK15ErrorDiagnosticV` | `{}` |
-| `memberOf` | `s:10PrinterSDK15ErrorDiagnosticV28sampledMonotonicMillisecondss6UInt64VSgvp` | `s:10PrinterSDK15ErrorDiagnosticV` | `{}` |
-| `memberOf` | `s:10PrinterSDK15ErrorDiagnosticV6domainSSvp` | `s:10PrinterSDK15ErrorDiagnosticV` | `{}` |
-| `memberOf` | `s:10PrinterSDK15ErrorDiagnosticV6sourceAA0D6SourceOvp` | `s:10PrinterSDK15ErrorDiagnosticV` | `{}` |
-| `memberOf` | `s:10PrinterSDK15ErrorDiagnosticV7messageSSvp` | `s:10PrinterSDK15ErrorDiagnosticV` | `{}` |
-| `memberOf` | `s:10PrinterSDK15ErrorDiagnosticV8sequences6UInt64Vvp` | `s:10PrinterSDK15ErrorDiagnosticV` | `{}` |
-| `memberOf` | `s:10PrinterSDK15ErrorDiagnosticV9errorCodes5Int32Vvp` | `s:10PrinterSDK15ErrorDiagnosticV` | `{}` |
+| `memberOf` | `s:10PrinterSDK15CompletionLevelO15deviceConfirmedyA2CmF` | `s:10PrinterSDK15CompletionLevelO` | `{}` |
+| `memberOf` | `s:10PrinterSDK15CompletionLevelO4noneyA2CmF` | `s:10PrinterSDK15CompletionLevelO` | `{}` |
+| `memberOf` | `s:10PrinterSDK15CompletionLevelO8dataSentyA2CmF` | `s:10PrinterSDK15CompletionLevelO` | `{}` |
+| `memberOf` | `s:10PrinterSDK15CompletionLevelO8rawValueACSgs6UInt32V_tcfc` | `s:10PrinterSDK15CompletionLevelO` | `{"sourceOrigin":{"displayName":"RawRepresentable.init(rawValue:)","identifier":"s:SY8rawValuexSg03RawB0Qz_tcfc"}}` |
 | `memberOf` | `s:10PrinterSDK15LabelJobOptionsV10heightDotss6UInt32Vvp` | `s:10PrinterSDK15LabelJobOptionsV` | `{}` |
 | `memberOf` | `s:10PrinterSDK15LabelJobOptionsV11originXDotss5Int32Vvp` | `s:10PrinterSDK15LabelJobOptionsV` | `{}` |
 | `memberOf` | `s:10PrinterSDK15LabelJobOptionsV11originYDotss5Int32Vvp` | `s:10PrinterSDK15LabelJobOptionsV` | `{}` |
@@ -8348,15 +6706,6 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:10PrinterSDK15LabelJobOptionsV6copiess6UInt32Vvp` | `s:10PrinterSDK15LabelJobOptionsV` | `{}` |
 | `memberOf` | `s:10PrinterSDK15LabelJobOptionsV9widthDots06heightG03dpi11originXDots0J5YDots6copies4formACs6UInt32V_A2Ls5Int32VAnLSbtcfc` | `s:10PrinterSDK15LabelJobOptionsV` | `{}` |
 | `memberOf` | `s:10PrinterSDK15LabelJobOptionsV9widthDotss6UInt32Vvp` | `s:10PrinterSDK15LabelJobOptionsV` | `{}` |
-| `memberOf` | `s:10PrinterSDK15OperationResultV10diagnosticAA15ErrorDiagnosticVvp` | `s:10PrinterSDK15OperationResultV` | `{}` |
-| `memberOf` | `s:10PrinterSDK15OperationResultV6statusAA014HardwareStatusD0VSgvp` | `s:10PrinterSDK15OperationResultV` | `{}` |
-| `memberOf` | `s:10PrinterSDK15OperationResultV8snapshotAA0C8SnapshotVvp` | `s:10PrinterSDK15OperationResultV` | `{}` |
-| `memberOf` | `s:10PrinterSDK16DiagnosticSourceO14userDisconnectyA2CmF` | `s:10PrinterSDK16DiagnosticSourceO` | `{}` |
-| `memberOf` | `s:10PrinterSDK16DiagnosticSourceO4noneyA2CmF` | `s:10PrinterSDK16DiagnosticSourceO` | `{}` |
-| `memberOf` | `s:10PrinterSDK16DiagnosticSourceO7connectyA2CmF` | `s:10PrinterSDK16DiagnosticSourceO` | `{}` |
-| `memberOf` | `s:10PrinterSDK16DiagnosticSourceO8rawValueACSgs6UInt32V_tcfc` | `s:10PrinterSDK16DiagnosticSourceO` | `{"sourceOrigin":{"displayName":"RawRepresentable.init(rawValue:)","identifier":"s:SY8rawValuexSg03RawB0Qz_tcfc"}}` |
-| `memberOf` | `s:10PrinterSDK16DiagnosticSourceO9operationyA2CmF` | `s:10PrinterSDK16DiagnosticSourceO` | `{}` |
-| `memberOf` | `s:10PrinterSDK16DiagnosticSourceO9transportyA2CmF` | `s:10PrinterSDK16DiagnosticSourceO` | `{}` |
 | `memberOf` | `s:10PrinterSDK16MediaRequirementV12verificationAA0C18VerificationPolicyOvp` | `s:10PrinterSDK16MediaRequirementV` | `{}` |
 | `memberOf` | `s:10PrinterSDK16MediaRequirementV16widthMicrometerss6UInt32VSgvp` | `s:10PrinterSDK16MediaRequirementV` | `{}` |
 | `memberOf` | `s:10PrinterSDK16MediaRequirementV20gapLengthMicrometerss6UInt32VSgvp` | `s:10PrinterSDK16MediaRequirementV` | `{}` |
@@ -8365,31 +6714,12 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:10PrinterSDK16MediaRequirementV22labelLengthMicrometerss6UInt32VSgvp` | `s:10PrinterSDK16MediaRequirementV` | `{}` |
 | `memberOf` | `s:10PrinterSDK16MediaRequirementV8tracking16widthMicrometers011labelLengthG003gapiG004markiG00k6OffsetG012verificationAcA0C4ModeOSg_s6UInt32VSgA3Ps5Int32VSgAA0C18VerificationPolicyOtcfc` | `s:10PrinterSDK16MediaRequirementV` | `{}` |
 | `memberOf` | `s:10PrinterSDK16MediaRequirementV8trackingAA0C4ModeOSgvp` | `s:10PrinterSDK16MediaRequirementV` | `{}` |
-| `memberOf` | `s:10PrinterSDK16ResourceSnapshotV11maxRawBytess6UInt64Vvp` | `s:10PrinterSDK16ResourceSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK16ResourceSnapshotV13maxImageBytess6UInt64Vvp` | `s:10PrinterSDK16ResourceSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK16ResourceSnapshotV16maxJobImageBytess6UInt64Vvp` | `s:10PrinterSDK16ResourceSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK16ResourceSnapshotV19pendingPayloadBytess6UInt64Vvp` | `s:10PrinterSDK16ResourceSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK16ResourceSnapshotV20maxPendingOperationss6UInt32Vvp` | `s:10PrinterSDK16ResourceSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK16ResourceSnapshotV21outstandingOperationss6UInt32Vvp` | `s:10PrinterSDK16ResourceSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK16ResourceSnapshotV22maxPendingPayloadBytess6UInt64Vvp` | `s:10PrinterSDK16ResourceSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK16ResourceSnapshotV9maxCopiess6UInt32Vvp` | `s:10PrinterSDK16ResourceSnapshotV` | `{}` |
 | `memberOf` | `s:10PrinterSDK16ScalarConstraintV4steps6UInt32Vvp` | `s:10PrinterSDK16ScalarConstraintV` | `{}` |
 | `memberOf` | `s:10PrinterSDK16ScalarConstraintV7isKnownSbvp` | `s:10PrinterSDK16ScalarConstraintV` | `{}` |
 | `memberOf` | `s:10PrinterSDK16ScalarConstraintV7maximums5Int32Vvp` | `s:10PrinterSDK16ScalarConstraintV` | `{}` |
 | `memberOf` | `s:10PrinterSDK16ScalarConstraintV7minimums5Int32Vvp` | `s:10PrinterSDK16ScalarConstraintV` | `{}` |
 | `memberOf` | `s:10PrinterSDK16ScalarConstraintV8evidences6UInt32Vvp` | `s:10PrinterSDK16ScalarConstraintV` | `{}` |
 | `memberOf` | `s:10PrinterSDK16ScalarConstraintV9parameterAA0aD0Ovp` | `s:10PrinterSDK16ScalarConstraintV` | `{}` |
-| `memberOf` | `s:10PrinterSDK17OperationSnapshotV10bytesTotals6UInt64VSgvp` | `s:10PrinterSDK17OperationSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK17OperationSnapshotV10completions6UInt32Vvp` | `s:10PrinterSDK17OperationSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK17OperationSnapshotV10isTerminalSbvp` | `s:10PrinterSDK17OperationSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK17OperationSnapshotV10mediaBasiss6UInt32Vvp` | `s:10PrinterSDK17OperationSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK17OperationSnapshotV14bytesSentExactSbvp` | `s:10PrinterSDK17OperationSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK17OperationSnapshotV19sideEffectsPossibleSbvp` | `s:10PrinterSDK17OperationSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK17OperationSnapshotV2ids6UInt64Vvp` | `s:10PrinterSDK17OperationSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK17OperationSnapshotV4kinds6UInt32Vvp` | `s:10PrinterSDK17OperationSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK17OperationSnapshotV5states6UInt32Vvp` | `s:10PrinterSDK17OperationSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK17OperationSnapshotV9bytesSents6UInt64Vvp` | `s:10PrinterSDK17OperationSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK17OperationSnapshotV9errorCodes5Int32Vvp` | `s:10PrinterSDK17OperationSnapshotV` | `{}` |
 | `memberOf` | `s:10PrinterSDK17ReceiptJobOptionsV14marginLeftDotss6UInt32Vvp` | `s:10PrinterSDK17ReceiptJobOptionsV` | `{}` |
 | `memberOf` | `s:10PrinterSDK17ReceiptJobOptionsV15marginRightDotss6UInt32Vvp` | `s:10PrinterSDK17ReceiptJobOptionsV` | `{}` |
 | `memberOf` | `s:10PrinterSDK17ReceiptJobOptionsV18maxTotalLengthDotss6UInt32Vvp` | `s:10PrinterSDK17ReceiptJobOptionsV` | `{}` |
@@ -8397,38 +6727,34 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:10PrinterSDK17ReceiptJobOptionsV6copiess6UInt32Vvp` | `s:10PrinterSDK17ReceiptJobOptionsV` | `{}` |
 | `memberOf` | `s:10PrinterSDK17ReceiptJobOptionsV9widthDots014maxTotalLengthG03dpi6copies010marginLeftG00m5RightG0ACs6UInt32V_A5Ktcfc` | `s:10PrinterSDK17ReceiptJobOptionsV` | `{}` |
 | `memberOf` | `s:10PrinterSDK17ReceiptJobOptionsV9widthDotss6UInt32Vvp` | `s:10PrinterSDK17ReceiptJobOptionsV` | `{}` |
-| `memberOf` | `s:10PrinterSDK19DeviceStateSnapshotV010connectionD0AA010ConnectionD0Ovp` | `s:10PrinterSDK19DeviceStateSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK19DeviceStateSnapshotV04workD0AA0c4WorkD0Ovp` | `s:10PrinterSDK19DeviceStateSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK19DeviceStateSnapshotV08hardwareD0AA08HardwareD0Ovp` | `s:10PrinterSDK19DeviceStateSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK19DeviceStateSnapshotV11queuedCounts6UInt32Vvp` | `s:10PrinterSDK19DeviceStateSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK19DeviceStateSnapshotV15activeOperationAA0c6ActiveG0VSgvp` | `s:10PrinterSDK19DeviceStateSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK19DeviceStateSnapshotV20connectionGenerations6UInt64Vvp` | `s:10PrinterSDK19DeviceStateSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK19DeviceStateSnapshotV23hardwareKnownConditionss6UInt32Vvp` | `s:10PrinterSDK19DeviceStateSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK19DeviceStateSnapshotV24hardwareActiveConditionss6UInt32Vvp` | `s:10PrinterSDK19DeviceStateSnapshotV` | `{}` |
-| `memberOf` | `s:10PrinterSDK19DeviceStateSnapshotV36hardwareSampledMonotonicMillisecondss6UInt64VSgvp` | `s:10PrinterSDK19DeviceStateSnapshotV` | `{}` |
+| `memberOf` | `s:10PrinterSDK19CancellationContextC05checkC0yyKF` | `s:10PrinterSDK19CancellationContextC` | `{}` |
+| `memberOf` | `s:10PrinterSDK19CancellationContextC11isCancelledSbvp` | `s:10PrinterSDK19CancellationContextC` | `{}` |
 | `memberOf` | `s:10PrinterSDK20BLECreditFlowControlV6dataFC10Foundation4UUIDVvp` | `s:10PrinterSDK20BLECreditFlowControlV` | `{}` |
 | `memberOf` | `s:10PrinterSDK20BLECreditFlowControlV7dataOut0F2FCAC10Foundation4UUIDV_AHtcfc` | `s:10PrinterSDK20BLECreditFlowControlV` | `{}` |
 | `memberOf` | `s:10PrinterSDK20BLECreditFlowControlV7dataOut10Foundation4UUIDVvp` | `s:10PrinterSDK20BLECreditFlowControlV` | `{}` |
-| `memberOf` | `s:10PrinterSDK20HardwareStatusResultV15knownConditionss6UInt32Vvp` | `s:10PrinterSDK20HardwareStatusResultV` | `{}` |
-| `memberOf` | `s:10PrinterSDK20HardwareStatusResultV16activeConditionss6UInt32Vvp` | `s:10PrinterSDK20HardwareStatusResultV` | `{}` |
-| `memberOf` | `s:10PrinterSDK20HardwareStatusResultV20connectionGenerations6UInt64Vvp` | `s:10PrinterSDK20HardwareStatusResultV` | `{}` |
-| `memberOf` | `s:10PrinterSDK20HardwareStatusResultV28sampledMonotonicMillisecondss6UInt64Vvp` | `s:10PrinterSDK20HardwareStatusResultV` | `{}` |
-| `memberOf` | `s:10PrinterSDK20HardwareStatusResultV8evidences6UInt32Vvp` | `s:10PrinterSDK20HardwareStatusResultV` | `{}` |
 | `memberOf` | `s:10PrinterSDK20ReceiptFinishOptionsV17trailingBlankDots3cut5scopeACs6UInt32V_AA7CutModeOAA0D5ScopeOtcfc` | `s:10PrinterSDK20ReceiptFinishOptionsV` | `{}` |
 | `memberOf` | `s:10PrinterSDK20ReceiptFinishOptionsV17trailingBlankDotss6UInt32Vvp` | `s:10PrinterSDK20ReceiptFinishOptionsV` | `{}` |
 | `memberOf` | `s:10PrinterSDK20ReceiptFinishOptionsV3cutAA7CutModeOvp` | `s:10PrinterSDK20ReceiptFinishOptionsV` | `{}` |
 | `memberOf` | `s:10PrinterSDK20ReceiptFinishOptionsV5scopeAA0D5ScopeOvp` | `s:10PrinterSDK20ReceiptFinishOptionsV` | `{}` |
-| `memberOf` | `s:10PrinterSDK21DeviceActiveOperationV2ids6UInt64Vvp` | `s:10PrinterSDK21DeviceActiveOperationV` | `{}` |
-| `memberOf` | `s:10PrinterSDK21DeviceActiveOperationV4kinds6UInt32Vvp` | `s:10PrinterSDK21DeviceActiveOperationV` | `{}` |
-| `memberOf` | `s:10PrinterSDK21DeviceActiveOperationV5states6UInt32Vvp` | `s:10PrinterSDK21DeviceActiveOperationV` | `{}` |
+| `memberOf` | `s:10PrinterSDK22MediaPersistencePolicyO12volatileOnlyyA2CmF` | `s:10PrinterSDK22MediaPersistencePolicyO` | `{}` |
+| `memberOf` | `s:10PrinterSDK22MediaPersistencePolicyO15allowPersistentyA2CmF` | `s:10PrinterSDK22MediaPersistencePolicyO` | `{}` |
+| `memberOf` | `s:10PrinterSDK22MediaPersistencePolicyO8rawValueACSgs6UInt32V_tcfc` | `s:10PrinterSDK22MediaPersistencePolicyO` | `{"sourceOrigin":{"displayName":"RawRepresentable.init(rawValue:)","identifier":"s:SY8rawValuexSg03RawB0Qz_tcfc"}}` |
 | `memberOf` | `s:10PrinterSDK23MediaVerificationPolicyO13allowLastSentyA2CmF` | `s:10PrinterSDK23MediaVerificationPolicyO` | `{}` |
 | `memberOf` | `s:10PrinterSDK23MediaVerificationPolicyO15requireReadbackyA2CmF` | `s:10PrinterSDK23MediaVerificationPolicyO` | `{}` |
 | `memberOf` | `s:10PrinterSDK23MediaVerificationPolicyO8rawValueACSgs6UInt32V_tcfc` | `s:10PrinterSDK23MediaVerificationPolicyO` | `{"sourceOrigin":{"displayName":"RawRepresentable.init(rawValue:)","identifier":"s:SY8rawValuexSg03RawB0Qz_tcfc"}}` |
-| `memberOf` | `s:10PrinterSDK23ObservationSubscriptionC5closeyyF` | `s:10PrinterSDK23ObservationSubscriptionC` | `{}` |
-| `memberOf` | `s:10PrinterSDK23ObservationSubscriptionC6cancelyyF` | `s:10PrinterSDK23ObservationSubscriptionC` | `{}` |
 | `memberOf` | `s:10PrinterSDK24StatusQueryConfigurationV15printerProtocol24queryTimeoutMillisecondsAcA0aG0O_s6UInt32VtKcfc` | `s:10PrinterSDK24StatusQueryConfigurationV` | `{}` |
 | `memberOf` | `s:10PrinterSDK24StatusQueryConfigurationV15printerProtocolAA0aG0Ovp` | `s:10PrinterSDK24StatusQueryConfigurationV` | `{}` |
 | `memberOf` | `s:10PrinterSDK24StatusQueryConfigurationV24queryTimeoutMillisecondss6UInt32Vvp` | `s:10PrinterSDK24StatusQueryConfigurationV` | `{}` |
+| `memberOf` | `s:10PrinterSDK6PixelsC15targetWidthDotss6UInt32Vvp` | `s:10PrinterSDK6PixelsC` | `{}` |
+| `memberOf` | `s:10PrinterSDK6PixelsC4data10Foundation4DataVvp` | `s:10PrinterSDK6PixelsC` | `{}` |
+| `memberOf` | `s:10PrinterSDK6PixelsC4data5width6height6format9algorithm9threshold6invert8fitWidth06targetL4DotsAC10Foundation4DataV_s6UInt32VAqA11PixelFormatOAA14ImageAlgorithmOAQS2bAQtcfc` | `s:10PrinterSDK6PixelsC` | `{}` |
+| `memberOf` | `s:10PrinterSDK6PixelsC5widths6UInt32Vvp` | `s:10PrinterSDK6PixelsC` | `{}` |
+| `memberOf` | `s:10PrinterSDK6PixelsC6formatAA11PixelFormatOvp` | `s:10PrinterSDK6PixelsC` | `{}` |
+| `memberOf` | `s:10PrinterSDK6PixelsC6heights6UInt32Vvp` | `s:10PrinterSDK6PixelsC` | `{}` |
+| `memberOf` | `s:10PrinterSDK6PixelsC6invertSbvp` | `s:10PrinterSDK6PixelsC` | `{}` |
+| `memberOf` | `s:10PrinterSDK6PixelsC8fitWidthSbvp` | `s:10PrinterSDK6PixelsC` | `{}` |
+| `memberOf` | `s:10PrinterSDK6PixelsC9algorithmAA14ImageAlgorithmOvp` | `s:10PrinterSDK6PixelsC` | `{}` |
+| `memberOf` | `s:10PrinterSDK6PixelsC9thresholds6UInt32Vvp` | `s:10PrinterSDK6PixelsC` | `{}` |
 | `memberOf` | `s:10PrinterSDK7CutModeO4fullyA2CmF` | `s:10PrinterSDK7CutModeO` | `{}` |
 | `memberOf` | `s:10PrinterSDK7CutModeO4noneyA2CmF` | `s:10PrinterSDK7CutModeO` | `{}` |
 | `memberOf` | `s:10PrinterSDK7CutModeO7partialyA2CmF` | `s:10PrinterSDK7CutModeO` | `{}` |
@@ -8438,20 +6764,10 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:10PrinterSDK7SDKInfoV13nativeVersionSSvp` | `s:10PrinterSDK7SDKInfoV` | `{}` |
 | `memberOf` | `s:10PrinterSDK7SDKInfoV19distributionVersionSSvp` | `s:10PrinterSDK7SDKInfoV` | `{}` |
 | `memberOf` | `s:10PrinterSDK7SDKInfoV7buildIDSSSgvp` | `s:10PrinterSDK7SDKInfoV` | `{}` |
-| `memberOf` | `s:10PrinterSDK8PrintJobC7BuilderC` | `s:10PrinterSDK8PrintJobC` | `{}` |
-| `memberOf` | `s:10PrinterSDK8PrintJobC7BuilderC11appendBlank4dotsys6UInt32V_tKF` | `s:10PrinterSDK8PrintJobC7BuilderC` | `{}` |
-| `memberOf` | `s:10PrinterSDK8PrintJobC7BuilderC11appendImageyyAA0aG0CKF` | `s:10PrinterSDK8PrintJobC7BuilderC` | `{}` |
-| `memberOf` | `s:10PrinterSDK8PrintJobC7BuilderC16setReceiptFinishyyAA0gH7OptionsVKF` | `s:10PrinterSDK8PrintJobC7BuilderC` | `{}` |
-| `memberOf` | `s:10PrinterSDK8PrintJobC7BuilderC19setMediaRequirementyyAA0gH0VSgF` | `s:10PrinterSDK8PrintJobC7BuilderC` | `{}` |
-| `memberOf` | `s:10PrinterSDK8PrintJobC7BuilderC5buildACyKF` | `s:10PrinterSDK8PrintJobC7BuilderC` | `{}` |
-| `memberOf` | `s:10PrinterSDK8PrintJobC7BuilderC5labelAeA05LabelD7OptionsV_tcfc` | `s:10PrinterSDK8PrintJobC7BuilderC` | `{}` |
-| `memberOf` | `s:10PrinterSDK8PrintJobC7BuilderC7receiptAeA07ReceiptD7OptionsV_tcfc` | `s:10PrinterSDK8PrintJobC7BuilderC` | `{}` |
-| `memberOf` | `s:10PrinterSDK8PrintJobC7BuilderC8addImage_1x1yyAA0aG0C_s5Int32VALtKF` | `s:10PrinterSDK8PrintJobC7BuilderC` | `{}` |
 | `memberOf` | `s:10PrinterSDK9MediaModeO10continuousyA2CmF` | `s:10PrinterSDK9MediaModeO` | `{}` |
 | `memberOf` | `s:10PrinterSDK9MediaModeO3gapyA2CmF` | `s:10PrinterSDK9MediaModeO` | `{}` |
 | `memberOf` | `s:10PrinterSDK9MediaModeO8rawValueACSgs6UInt32V_tcfc` | `s:10PrinterSDK9MediaModeO` | `{"sourceOrigin":{"displayName":"RawRepresentable.init(rawValue:)","identifier":"s:SY8rawValuexSg03RawB0Qz_tcfc"}}` |
 | `memberOf` | `s:10PrinterSDK9MediaModeO9blackMarkyA2CmF` | `s:10PrinterSDK9MediaModeO` | `{}` |
-| `memberOf` | `s:10PrinterSDKAAO4infoAA7SDKInfoVyKFZ` | `s:10PrinterSDKAAO` | `{}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK0A10ConstraintO` | `s:10PrinterSDK0A10ConstraintO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK0A7FeatureO` | `s:10PrinterSDK0A7FeatureO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK0A8GeometryV` | `s:10PrinterSDK0A8GeometryV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
@@ -8459,35 +6775,27 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV` | `s:10PrinterSDK0A8SDKErrorV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK11FinishScopeO` | `s:10PrinterSDK11FinishScopeO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK11PixelFormatO` | `s:10PrinterSDK11PixelFormatO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
-| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK13HardwareStateO` | `s:10PrinterSDK13HardwareStateO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
+| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK12StatusResultV` | `s:10PrinterSDK12StatusResultV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK14FeatureSupportV` | `s:10PrinterSDK14FeatureSupportV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK14ImageAlgorithmO` | `s:10PrinterSDK14ImageAlgorithmO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
-| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK15ConnectionStateO` | `s:10PrinterSDK15ConnectionStateO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
-| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK15DeviceWorkStateO` | `s:10PrinterSDK15DeviceWorkStateO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
-| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK15ErrorDiagnosticV` | `s:10PrinterSDK15ErrorDiagnosticV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
-| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK15OperationResultV` | `s:10PrinterSDK15OperationResultV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
-| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK16DiagnosticSourceO` | `s:10PrinterSDK16DiagnosticSourceO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
-| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK16ResourceSnapshotV` | `s:10PrinterSDK16ResourceSnapshotV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
+| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK14ManagerOutcomeO` | `s:10PrinterSDK14ManagerOutcomeO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
+| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK15CompletionLevelO` | `s:10PrinterSDK15CompletionLevelO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK16ScalarConstraintV` | `s:10PrinterSDK16ScalarConstraintV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
-| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK17OperationSnapshotV` | `s:10PrinterSDK17OperationSnapshotV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
-| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK19DeviceStateSnapshotV` | `s:10PrinterSDK19DeviceStateSnapshotV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
-| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK20HardwareStatusResultV` | `s:10PrinterSDK20HardwareStatusResultV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
-| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK21DeviceActiveOperationV` | `s:10PrinterSDK21DeviceActiveOperationV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
+| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK22MediaPersistencePolicyO` | `s:10PrinterSDK22MediaPersistencePolicyO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK23MediaVerificationPolicyO` | `s:10PrinterSDK23MediaVerificationPolicyO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK24StatusQueryConfigurationV` | `s:10PrinterSDK24StatusQueryConfigurationV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK7CutModeO` | `s:10PrinterSDK7CutModeO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK7SDKInfoV` | `s:10PrinterSDK7SDKInfoV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK9MediaModeO` | `s:10PrinterSDK9MediaModeO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
+| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK9RequestIDV` | `s:10PrinterSDK9RequestIDV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK0A10ConstraintO` | `s:10PrinterSDK0A10ConstraintO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hashValue","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp"}}` |
 | `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK0A7FeatureO` | `s:10PrinterSDK0A7FeatureO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hashValue","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp"}}` |
 | `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK0A8ProtocolO` | `s:10PrinterSDK0A8ProtocolO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hashValue","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp"}}` |
 | `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK11FinishScopeO` | `s:10PrinterSDK11FinishScopeO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hashValue","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp"}}` |
 | `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK11PixelFormatO` | `s:10PrinterSDK11PixelFormatO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hashValue","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp"}}` |
-| `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK13HardwareStateO` | `s:10PrinterSDK13HardwareStateO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hashValue","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp"}}` |
 | `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK14ImageAlgorithmO` | `s:10PrinterSDK14ImageAlgorithmO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hashValue","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp"}}` |
-| `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK15ConnectionStateO` | `s:10PrinterSDK15ConnectionStateO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hashValue","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp"}}` |
-| `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK15DeviceWorkStateO` | `s:10PrinterSDK15DeviceWorkStateO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hashValue","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp"}}` |
-| `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK16DiagnosticSourceO` | `s:10PrinterSDK16DiagnosticSourceO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hashValue","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp"}}` |
+| `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK15CompletionLevelO` | `s:10PrinterSDK15CompletionLevelO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hashValue","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp"}}` |
+| `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK22MediaPersistencePolicyO` | `s:10PrinterSDK22MediaPersistencePolicyO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hashValue","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp"}}` |
 | `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK23MediaVerificationPolicyO` | `s:10PrinterSDK23MediaVerificationPolicyO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hashValue","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp"}}` |
 | `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK7CutModeO` | `s:10PrinterSDK7CutModeO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hashValue","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp"}}` |
 | `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK9MediaModeO` | `s:10PrinterSDK9MediaModeO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hashValue","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp"}}` |
@@ -8496,11 +6804,9 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK0A8ProtocolO` | `s:10PrinterSDK0A8ProtocolO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hash(into:)","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF"}}` |
 | `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK11FinishScopeO` | `s:10PrinterSDK11FinishScopeO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hash(into:)","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF"}}` |
 | `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK11PixelFormatO` | `s:10PrinterSDK11PixelFormatO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hash(into:)","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF"}}` |
-| `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK13HardwareStateO` | `s:10PrinterSDK13HardwareStateO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hash(into:)","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF"}}` |
 | `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK14ImageAlgorithmO` | `s:10PrinterSDK14ImageAlgorithmO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hash(into:)","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF"}}` |
-| `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK15ConnectionStateO` | `s:10PrinterSDK15ConnectionStateO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hash(into:)","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF"}}` |
-| `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK15DeviceWorkStateO` | `s:10PrinterSDK15DeviceWorkStateO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hash(into:)","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF"}}` |
-| `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK16DiagnosticSourceO` | `s:10PrinterSDK16DiagnosticSourceO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hash(into:)","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF"}}` |
+| `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK15CompletionLevelO` | `s:10PrinterSDK15CompletionLevelO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hash(into:)","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF"}}` |
+| `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK22MediaPersistencePolicyO` | `s:10PrinterSDK22MediaPersistencePolicyO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hash(into:)","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF"}}` |
 | `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK23MediaVerificationPolicyO` | `s:10PrinterSDK23MediaVerificationPolicyO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hash(into:)","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF"}}` |
 | `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK7CutModeO` | `s:10PrinterSDK7CutModeO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hash(into:)","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF"}}` |
 | `memberOf` | `s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK9MediaModeO` | `s:10PrinterSDK9MediaModeO` | `{"sourceOrigin":{"displayName":"RawRepresentable.hash(into:)","identifier":"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF"}}` |

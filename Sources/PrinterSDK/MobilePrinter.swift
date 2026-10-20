@@ -46,7 +46,7 @@ private func printConfig(label: CpclProfile? = nil, receipt: ReceiptProfile? = n
 // lifetime guards handle/users/closing and serializes destruction against borrowers;
 // observationLock guards the service reference. Native device calls are synchronized
 // by the existing C runtime; all printer IO still uses its single executor.
-public final class MobilePrinter: @unchecked Sendable {
+final class MobilePrinter: @unchecked Sendable {
     private let lifetime = NSCondition()
     private var users = 0
     private var closing = false
@@ -200,14 +200,18 @@ public final class MobilePrinter: @unchecked Sendable {
         guard let result = try capabilities().constraints[constraint] else { throw PrinterSDKError(1000) }; return result
     }
     private func operation(_ device: OpaquePointer, timeout: UInt32,
-        _ request: (OpaquePointer, UnsafePointer<psdk_operation_options>, UnsafeMutablePointer<OpaquePointer?>) -> Int32
+        _ request: (OpaquePointer, UnsafePointer<psdk_operation_options>, UnsafeMutablePointer<OpaquePointer?>,
+                    UnsafeMutablePointer<psdk_error_diagnostic>) -> Int32
     ) throws -> PrintOperation {
         guard timeout > 0 else { throw PrinterSDKError(1001) }
         var options = psdk_operation_options()
         try check(psdk_operation_options_init(&options, MemoryLayout.size(ofValue: options)))
         options.timeout_ms = timeout; options.required_completion = UInt32(PSDK_DATA_SENT)
         var value: OpaquePointer?
-        try check(request(device, &options, &value))
+        var diagnostic = psdk_error_diagnostic()
+        try check(psdk_error_diagnostic_init(&diagnostic, MemoryLayout.size(ofValue: diagnostic)))
+        let code = request(device, &options, &value, &diagnostic)
+        if code != 0 { throw PrinterSDKError(code, diagnostic: diagnosticValue(diagnostic)) }
         guard let value else { throw PrinterSDKError(1000) }
         return try PrintOperation(value, service: observations)
     }
@@ -217,7 +221,7 @@ public final class MobilePrinter: @unchecked Sendable {
         return try withExtendedLifetime(job) {
             try withDevice { device in
                 try operation(device, timeout: timeout) {
-                    psdk_device_submit($0, job.handle, &configuration, $1, $2)
+                    psdk_device_submit_diagnosed($0, job.handle, &configuration, $1, $2, $3)
                 }
             }
         }
@@ -257,7 +261,7 @@ public final class MobilePrinter: @unchecked Sendable {
     }
     private func execute(_ request: inout psdk_execute_request, timeout: UInt32) throws -> PrintOperation {
         try withDevice { device in
-            try operation(device, timeout: timeout) { psdk_device_execute($0, &request, $1, $2) }
+            try operation(device, timeout: timeout) { psdk_device_execute_diagnosed($0, &request, $1, $2, $3) }
         }
     }
     public func submitRaw(_ bytes: Data, copies: UInt32 = 1,
@@ -279,6 +283,14 @@ public final class MobilePrinter: @unchecked Sendable {
         _ = psdk_media_settings_init(&request.data.media.settings, MemoryLayout<psdk_media_settings>.size)
         request.data.media.settings.present_fields = UInt32(PSDK_MEDIA_TRACKING)
         request.data.media.settings.tracking = mode.rawValue
+        request.data.media.config = printConfig(label: profile)
+        return try execute(&request, timeout: timeoutMilliseconds)
+    }
+    func setMedia(_ settings: MediaSettings, profile: CpclProfile, timeoutMilliseconds: UInt32) throws -> PrintOperation {
+        var request = psdk_execute_request()
+        try check(psdk_execute_request_init(&request, MemoryLayout.size(ofValue: request)))
+        request.kind = UInt32(PSDK_OP_MEDIA)
+        request.data.media.settings = settings.native()
         request.data.media.config = printConfig(label: profile)
         return try execute(&request, timeout: timeoutMilliseconds)
     }

@@ -2,9 +2,9 @@ import Foundation
 
 public struct PrinterSDKError: LocalizedError, Equatable, Sendable {
     public let code: Int32
-    public let diagnostic: ErrorDiagnostic?
+    let diagnostic: ErrorDiagnostic?
     public init(_ code: Int32) { self.code = code; self.diagnostic = nil }
-    public init(_ code: Int32, diagnostic: ErrorDiagnostic?) {
+    init(_ code: Int32, diagnostic: ErrorDiagnostic?) {
         self.code = code; self.diagnostic = diagnostic
     }
     /// Error equality keeps its existing stable-code semantics; compare diagnostics separately.
@@ -90,20 +90,20 @@ public struct ReceiptProfile: Sendable {
 }
 public enum CutMode: UInt32, Sendable { case none = 0, full = 1, partial = 2 }
 public enum FinishScope: UInt32, Sendable { case eachCopy = 0, endOfJob = 1 }
-public enum ConnectionState: UInt32, Sendable {
+enum ConnectionState: UInt32, Sendable {
     case disconnected = 0, connecting = 1, connected = 2, disconnecting = 3
 }
 /// Local SDK execution only; idle does not confirm that paper has finished printing.
-public enum DeviceWorkState: UInt32, Sendable { case idle = 0, queued = 1, preparing = 2, sending = 3 }
+enum DeviceWorkState: UInt32, Sendable { case idle = 0, queued = 1, preparing = 2, sending = 3 }
 /// Hardware state requires printer evidence. Current standard protocols report unknown.
-public enum HardwareState: UInt32, Sendable { case unknown = 0 }
-public struct DeviceActiveOperation: Equatable, Sendable {
+enum HardwareState: UInt32, Sendable { case unknown = 0 }
+struct DeviceActiveOperation: Equatable, Sendable {
     public let id: UInt64
     public let kind: UInt32
     public let state: UInt32
 }
 /// Consistent local observation without printer IO. Never use this as a submission precondition.
-public struct DeviceStateSnapshot: Equatable, Sendable {
+struct DeviceStateSnapshot: Equatable, Sendable {
     public let connectionState: ConnectionState
     public let workState: DeviceWorkState
     /// Waiting business operations, excluding the active operation and internal connection work.
@@ -130,7 +130,7 @@ public struct FeatureSupport: Equatable, Sendable {
     public var isSupported: Bool { isImplemented && deviceSupport == 2 }
 }
 /// Independent result owned by PrintOperation; it remains readable after device close.
-public struct OperationSnapshot: Equatable, Sendable {
+struct OperationSnapshot: Equatable, Sendable {
     public let id: UInt64
     public let kind: UInt32
     public let state: UInt32

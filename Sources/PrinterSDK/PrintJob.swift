@@ -7,7 +7,7 @@ public enum ImageAlgorithm: UInt32, Sendable { case threshold = 0, floydSteinber
 /// Immutable copied pixels and rendering options. Jobs share this native storage.
 // The native handle owns immutable copied pixels; submission/build retain that storage.
 // ARC prevents release while a Swift caller or builder snapshot is using this handle.
-public final class PrinterImage: @unchecked Sendable {
+final class PrinterImage: @unchecked Sendable {
     let handle: OpaquePointer
     public let width: UInt32
     public let height: UInt32
@@ -90,7 +90,7 @@ public struct MediaRequirement: Sendable {
 
 /// Immutable metadata and shared native image storage. Submission retains everything it needs.
 // The native job is immutable and owns retained images; ARC protects its handle lifetime.
-public final class PrintJob: @unchecked Sendable {
+final class PrintJob: @unchecked Sendable {
     let handle: OpaquePointer
     private init(_ handle: OpaquePointer) { self.handle = handle }
     deinit { psdk_job_release(handle) }
