@@ -1,6 +1,6 @@
 # printer-sdk-ios
 
-NETUM Printer SDK iOS 开发预览 **0.3.0-preview.4**：核心 SDK 0.3.0，C ABI 3/r2。
+NETUM Printer SDK iOS 开发预览 **0.3.0-preview.5**：核心 SDK 0.3.0，C ABI 3/r2。
 冻结契约状态为 `candidate`；文档本身不作为在线发布或硬件认证证明。
 Framework Bundle ID 为 `com.netumscan.printersdk.core`；Swift 模块为 `PrinterSDK`，C 模块为 `CPrinterSDK`。
 ABI 3 仅包含 `printer_sdk.h`，与 ABI 2 二进制不兼容；旧版标签及历史附件保持不变。
@@ -16,13 +16,13 @@ Swift 包装源码与 C 头供集成使用，C++ 核心只以二进制分发。
 准备目录中的 `Package.swift` 记录将来的精确版本 URL 和校验和；上传前该 URL 可能不存在。
 本地独立 Consumer 验证会把 binary target 临时改为本地 XCFramework 路径，不需要远端依赖。
 
-发布经单独授权并验证后，Xcode Package Dependencies 才可选择以下仓库及 Exact Version `0.3.0-preview.4`：
+发布经单独授权并验证后，Xcode Package Dependencies 才可选择以下仓库及 Exact Version `0.3.0-preview.5`：
 
 ```swift
-.package(url: "https://github.com/netumscan/printer-sdk-ios", exact: "0.3.0-preview.4")
+.package(url: "https://github.com/netumscan/printer-sdk-ios", exact: "0.3.0-preview.5")
 ```
 
-候选二进制 URL：[https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.4/PrinterSDK.xcframework.zip](https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.4/PrinterSDK.xcframework.zip)。这段配置本身不是在线可用性证明。
+候选二进制 URL：[https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.5/XLPrinterSDK.xcframework.zip](https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.5/XLPrinterSDK.xcframework.zip)。这段配置本身不是在线可用性证明。
 
 ## App 生命周期
 

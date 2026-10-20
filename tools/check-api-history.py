@@ -79,6 +79,11 @@ CANDIDATE_CONTRACTS = {"0.3.0-preview.1": {
     "historical_baseline_version": "0.2.0-preview.3", "c_export_count": 27,
     "manifest_sha256": "40961a9f7c87d2b13b154ad6a5a0580bf11a373d71434e07634db43aae43a095",
     "c_baseline_sha256": "8e2545006c49163742771ee9ddc2dad347f19eb963a93ec6ba9106086750b867",
+}, "0.3.0-preview.5": {
+    "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 2},
+    "historical_baseline_version": "0.2.0-preview.3", "c_export_count": 27,
+    "manifest_sha256": "721875893368d2fa84a3d79b6a6a3e5f528b223398a5702d04ed3b75eafc4cfc",
+    "c_baseline_sha256": "bd1267bf96730249f230f592b2c4dd048faccb028c85ad921c988fde3a0e3e95",
 }}
 
 

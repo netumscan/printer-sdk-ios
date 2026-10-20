@@ -1,13 +1,13 @@
 # Android Java API 参考
 
-发布候选版本 **0.3.0-preview.4**；原生 SDK **0.3.0**；C ABI **3/r2**。
+发布候选版本 **0.3.0-preview.5**；原生 SDK **0.3.0**；C ABI **3/r2**。
 
 本页逐项覆盖审定的编译器公共 API 基线，共 **225** 个文档条目。
 声明、JVM descriptor、常量、枚举和编译器关系均来自基线，说明按稳定文档 ID 维护。
 机器可读的完整基线与说明见 [api-reference.json](api-reference.json)；运行
 `python3 tools/check-api-reference.py` 可检查覆盖范围、审定 SHA-256 和本页字节一致性。
 
-基线 SHA-256：`cc7d3634f25deeca19aeef6a8775eab17f40ede6837967113b386bcc33b9288e`
+基线 SHA-256：`cdee503bff25d6c1ee0b9d3f0fa488293570cf83124a382ca53e7bbc14ed686c`
 
 运行约束与错误处理见 [API 与生命周期](api-lifecycle.md) 和 [错误码与排障](errors-troubleshooting.md)。
 本页是未发布的发布候选契约，不代表发布制品或公开历史证明。硬件验收仍暂缓，`hardware_verified=false`。
@@ -57,7 +57,7 @@ Java 签名保留编译器记录的二进制嵌套名 `$`；源码导入和类�
 public final class com.netumscan.printersdk.BleOptions
 ```
 
-应用须显式提供服务与特征 UUID、MTU 请求值及写入上限；没有自动识别型号或猜测 UUID 的行为。构造只校验配置，不连接设备。`withResponse` 选择 GATT 写入方式，不能作为打印机执行确认；实际分包长度受协商 MTU、配置上限和可选信用额度共同限制。字段均为 `final`，可在多个设备创建请求间复用。
+应用须显式提供服务与特征 UUID、MTU 请求值及写入上限；没有自动识别型号或猜测 UUID 的行为。构造只校验配置，不连接设备。`withResponse` 选择 GATT 写入方式，不能作为打印机执行确认；实际单包长度受协商 MTU、配置上限和启用流控时固件通知的 `packetLimit` 限制。Credit 单独控制剩余发送次数，每发送一包消耗 1 个，不表示可发送字节数。字段均为 `final`，可在多个设备创建请求间复用。
 
 文档 ID：`android:type:com.netumscan.printersdk.BleOptions`
 
@@ -135,7 +135,7 @@ JVM descriptor：`Lcom/netumscan/printersdk/BleOptions$CreditFlowControl;`
 public final int maxWriteBytes;
 ```
 
-合法范围为 1..512，由构造参数显式指定。实际单包长度不超过此值与协商 MTU 减 3 的较小值；启用信用流控时还受信用额度约束。这是传输分包上限，不是光栅条带高度或完整作业大小限制。
+合法范围为 1..512，由构造参数显式指定。实际单包长度不超过此值与协商 MTU 减 3 的较小值；启用信用流控时，还受固件通知的独立单包字节上限 `packetLimit` 限制。Credit 表示剩余发送次数，每发送一包消耗 1 个；额度为零时等待新的额度通知，不用额度数值限制包长。这是传输分包上限，不是光栅条带高度或完整作业大小限制。
 
 文档 ID：`android:member:com.netumscan.printersdk.BleOptions:f96a0e16f66d9c02`
 
@@ -379,13 +379,13 @@ JVM descriptor：`(Ljava/lang/String;)Lcom/netumscan/printersdk/ConnectionOption
 
 ## CpclProfile
 
-声明 CPCL 操作的显式光栅几何。
+声明 CPCL 打印的显式光栅几何及兼容便捷入口默认值。
 
 ```java
 public final class com.netumscan.printersdk.CpclProfile
 ```
 
-不可变配置，逐次提供给 Manager 的打印、介质或走纸操作；连接只接收通信目标。点数为打印机 dots，DPI 和可打印宽度由应用按实际设备声明。xOffsetDots/form 保留为配置字段，Manager 不自动继承到 PreparedPrint；作业原点与结束策略显式提供。Raw 不受这些字段改写，配置不是硬件验收证明。
+不可变配置，可在每次 CPCL 操作提交时提供；旧 CPCL 设备工厂也可绑定它。点数为打印机 dots，DPI 与纸张毫米数需由调用方结合实际设备换算，SDK 不猜测型号。`widthDots` 是设备最大可打印宽度，不是输入图片固定宽度。`xOffsetDots` 和 `form` 仅为 `submitGray8()` 便捷入口的默认值；显式 `submitLabelGray8()` 使用自己的原点和结束策略，Raw 字节不受这些值改写。配置不是硬件验收证明。
 
 文档 ID：`android:type:com.netumscan.printersdk.CpclProfile`
 
@@ -399,7 +399,7 @@ public final class com.netumscan.printersdk.CpclProfile
 public com.netumscan.printersdk.CpclProfile(int, int, int, boolean);
 ```
 
-参数 dpi 为正整数；widthDots 为 8..7992 dots，必须为 8 的倍数；maxLabelHeightDots 为 1..65535 dots；form 是保留的标签结束配置字段。等价于五参数构造器传入 xOffsetDots=0。非法几何同步抛出 IllegalArgumentException；不执行 IO，不自动推断纸宽。Manager 作业的原点与结束策略由 PreparedPrint 显式声明。
+参数 `dpi` 为正整数；`widthDots` 为 8..7992 dots，必须为 8 的倍数；`maxLabelHeightDots` 为 1..65535 dots；`form` 指定兼容 `submitGray8()` 的下一标签开始结束策略。等价于五参数构造器传入 `xOffsetDots=0`。非法几何同步抛出 `IllegalArgumentException`；不执行 IO，不自动推断纸宽。
 
 文档 ID：`android:member:com.netumscan.printersdk.CpclProfile:7002d48a5c80a84b`
 
@@ -415,7 +415,7 @@ JVM descriptor：`(IIIZ)V`
 public com.netumscan.printersdk.CpclProfile(int, int, int, boolean, int);
 ```
 
-参数 dpi 为正整数；widthDots 为 8..7992 dots 且为 8 的倍数；maxLabelHeightDots 为 1..65535 dots；xOffsetDots 为 0..widthDots-1，form 为保留的标签结束配置字段。非法参数同步抛出 IllegalArgumentException。Manager 不自动将原点和结束字段覆盖到 PreparedPrint；本次标签描述须显式提供对应值，超界不自动裁剪。Raw 不受改写。
+参数 `dpi` 为正整数；`widthDots` 为 8..7992 dots 且为 8 的倍数；`maxLabelHeightDots` 为 1..65535 dots；`xOffsetDots` 为 0..`widthDots-1`；`form` 指定兼容图像提交的结束策略。非法参数同步抛出 `IllegalArgumentException`。偏移不会扩大可打印宽度或裁剪图片：提交时偏移加按整字节补齐的图宽仍须落在设备宽度内。显式标签提交可另设原点/结束策略；Raw 命令不受此配置改写。
 
 文档 ID：`android:member:com.netumscan.printersdk.CpclProfile:8f3cfa075f5b2a1c`
 
@@ -425,13 +425,13 @@ JVM descriptor：`(IIIZI)V`
 
 ### public final boolean form
 
-保留的 CPCL 标签结束配置字段。
+兼容图像入口默认采用的标签结束策略。
 
 ```java
 public final boolean form;
 ```
 
-true 表示下一标签开始策略（CPCL FORM），false 表示内容结束。Manager 打印显式使用 PreparedPrint.label 描述的结束策略，不自动继承此字段；App 可以自行将其填入本次描述。它不设置介质类型、不校准传感器，也不影响 Raw。
+true 使 `submitGray8()` 使用下一标签开始策略（CPCL FORM）；false 使用内容结束策略。它不选择 GAP/BLACK_MARK/CONTINUOUS、不校准传感器，也不验证纸张实际位置。`submitLabelGray8()` 的 `form` 参数独立覆盖该默认值，Raw 不受影响。
 
 文档 ID：`android:member:com.netumscan.printersdk.CpclProfile:6df5f7cd5045db8d`
 
@@ -489,13 +489,13 @@ JVM descriptor：`I`
 
 ### public final int xOffsetDots
 
-保留的非负水平原点配置字段，单位为 dots。
+兼容图像入口默认的非负水平原点，单位为 dots。
 
 ```java
 public final int xOffsetDots;
 ```
 
-四参数构造器默认值为 0；显式值必须小于 widthDots。Manager 不自动将此字段应用到 PreparedPrint.label；本次作业的 originX 由输入描述显式提供。原点不改变输入图尺寸或 Raw 字节，超界不自动裁剪。
+四参数构造器默认值为 0；显式值必须小于 `widthDots`。仅 `submitGray8()` 继承此值，`submitLabelGray8()` 使用自己的 `originX`。原点不改变输入图尺寸或 Raw 字节，超界不自动裁剪。
 
 文档 ID：`android:member:com.netumscan.printersdk.CpclProfile:af181a7757d57091`
 
@@ -589,7 +589,7 @@ JVM descriptor：`Ljava/util/List;`
 public final class com.netumscan.printersdk.EscPosProfile
 ```
 
-不可变配置，逐次提供给 Manager 的 ESC/POS 打印操作；连接只接收通信目标。必须与实际设备密度和可打印点宽匹配，不从名称或纸宽推断型号。Preparation 返回 PreparedPrint 小票的像素、空白元素、长度预算及结束策略。当前标准后端不实现硬件状态查询和切纸。
+不可变配置，用于 ESC/POS 设备工厂。必须与实际设备的密度和可打印点宽匹配，不从纸宽或名称推断型号。该类型不包含切刀或状态支持声明；当前标准后端不实现状态查询及切纸。整张小票须由调用方渲染为 Gray8 图片，再用 `submitReceiptGray8()` 提交。
 
 文档 ID：`android:type:com.netumscan.printersdk.EscPosProfile`
 
@@ -1031,7 +1031,7 @@ JVM descriptor：`(II)Lcom/netumscan/printersdk/BleOptions;`
 public final class com.netumscan.printersdk.ManagerResult<T>
 ```
 
-包含请求标识、成功/失败/取消、稳定错误码、辅助消息、完成证据、可能已输出标记及可选业务值。主线程回调恰好完成一次；dataSent仅证明数据发送完成，不证明纸张已打印。
+包含请求标识、成功/失败/取消、稳定错误码、辅助消息、完成证据、可能已输出标记及可选业务值。主线程回调恰好完成一次；dataSent仅证明数据发送完成，不证明纸张已打印。 引用字段均声明空值约束：`value` 为 `@Nullable`，其他引用字段为 `@NonNull`；Void 结果或失败结果不要求业务值存在。
 
 文档 ID：`android:type:com.netumscan.printersdk.ManagerResult`
 
@@ -1050,6 +1050,8 @@ public final T value;
 文档 ID：`android:member:com.netumscan.printersdk.ManagerResult:60258455367224f8`
 
 JVM descriptor：`Ljava/lang/Object;`
+
+编译器注解：`@androidx.annotation.Nullable`。
 
 <a id="api-356bea50d55103f0d6ac"></a>
 
@@ -1083,6 +1085,8 @@ none表示没有打印完成证据，dataSent表示传输完成，deviceConfirme
 
 JVM descriptor：`Lcom/netumscan/printersdk/ManagerResult$Completion;`
 
+编译器注解：`@androidx.annotation.NonNull`。
+
 <a id="api-b511db0e6dff799b48b8"></a>
 
 ### public final com.netumscan.printersdk.ManagerResult$Outcome outcome
@@ -1099,6 +1103,8 @@ public final com.netumscan.printersdk.ManagerResult$Outcome outcome;
 
 JVM descriptor：`Lcom/netumscan/printersdk/ManagerResult$Outcome;`
 
+编译器注解：`@androidx.annotation.NonNull`。
+
 <a id="api-e4a0bf43f650f01efaeb"></a>
 
 ### public final com.netumscan.printersdk.RequestId requestId
@@ -1114,6 +1120,8 @@ public final com.netumscan.printersdk.RequestId requestId;
 文档 ID：`android:member:com.netumscan.printersdk.ManagerResult:e82f6b58f9864f0c`
 
 JVM descriptor：`Lcom/netumscan/printersdk/RequestId;`
+
+编译器注解：`@androidx.annotation.NonNull`。
 
 <a id="api-4fe8239624fcc5ce1537"></a>
 
@@ -1146,6 +1154,8 @@ public final java.lang.String message;
 文档 ID：`android:member:com.netumscan.printersdk.ManagerResult:62f72828fbf07916`
 
 JVM descriptor：`Ljava/lang/String;`
+
+编译器注解：`@androidx.annotation.NonNull`。
 
 <a id="api-1721ae5f9f8202edb30d"></a>
 
@@ -2645,9 +2655,11 @@ JVM descriptor：`I`
 public final class com.netumscan.printersdk.PrinterManager
 ```
 
-通过构造器创建独立实例；连接、发现、打印、控制、查询和清理均由此入口管理。请求立即返回标识，完成结果异步投递到主线程；准备与准入保持请求顺序，打印机IO始终由native设备队列串行执行，不自动重连、重放或重试。
+通过构造器创建独立实例；连接、发现、打印、控制、查询和清理均由此入口管理。请求立即返回标识，完成结果异步投递到主线程；准备与准入保持请求顺序，打印机IO始终由native设备队列串行执行，不自动重连、重放或重试。 `@AnyThread` 允许从任意线程提交；所需引用参数和 `RequestId` 返回值标注 `@NonNull`，可选 BLE service、断连监听器与取消标识标注 `@Nullable`。
 
 文档 ID：`android:type:com.netumscan.printersdk.PrinterManager`
+
+编译器注解：`@androidx.annotation.AnyThread`。
 
 <a id="api-6761fb538c137c164625"></a>
 
@@ -2665,21 +2677,27 @@ public com.netumscan.printersdk.PrinterManager(android.content.Context);
 
 JVM descriptor：`(Landroid/content/Context;)V`
 
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
+
 <a id="api-67aaa2c77fa3ef876418"></a>
 
 ### public com.netumscan.printersdk.RequestId bondedDevices(com.netumscan.printersdk.PrinterManager$Callback<java.util.List<com.netumscan.printersdk.DiscoveredDevice>>)
 
-枚举系统已配对的经典蓝牙设备。
+枚举系统已配对的蓝牙设备。
 
 ```java
 public com.netumscan.printersdk.RequestId bondedDevices(com.netumscan.printersdk.PrinterManager$Callback<java.util.List<com.netumscan.printersdk.DiscoveredDevice>>);
 ```
 
-Android通过Manager异步返回只读设备列表；iOS不提供SPP配对枚举，使用同一异步完成通道返回Unsupported，不发起隐式配对。
+通过 Manager 异步返回系统已配对蓝牙设备的只读列表。底层读取 `getBondedDevices()`，不按经典蓝牙或 BLE 类型过滤；出现在列表中不保证支持 SPP/RFCOMM，也不表示已连接或识别为打印机。不发起隐式配对，权限和生命周期错误通过本次完成回调返回。
 
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:250ef332e85fdb96`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/PrinterManager$Callback;)Lcom/netumscan/printersdk/RequestId;`
+
+编译器注解：`@androidx.annotation.NonNull`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
 <a id="api-aa164db0d48e84572c33"></a>
 
@@ -2697,6 +2715,10 @@ public com.netumscan.printersdk.RequestId capabilities(com.netumscan.printersdk.
 
 JVM descriptor：`(Lcom/netumscan/printersdk/PrinterManager$Callback;)Lcom/netumscan/printersdk/RequestId;`
 
+编译器注解：`@androidx.annotation.NonNull`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
+
 <a id="api-704c0cf7d94eeebbfb7f"></a>
 
 ### public com.netumscan.printersdk.RequestId close(com.netumscan.printersdk.PrinterManager$Callback<java.lang.Void>)
@@ -2712,6 +2734,10 @@ public com.netumscan.printersdk.RequestId close(com.netumscan.printersdk.Printer
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:9ffe7f34b33337a5`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/PrinterManager$Callback;)Lcom/netumscan/printersdk/RequestId;`
+
+编译器注解：`@androidx.annotation.NonNull`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
 <a id="api-351a74d77bb03f0bdc72"></a>
 
@@ -2729,6 +2755,14 @@ public com.netumscan.printersdk.RequestId connect(com.netumscan.printersdk.Conne
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ConnectionOptions;ILcom/netumscan/printersdk/PrinterManager$Callback;Lcom/netumscan/printersdk/PrinterManager$DisconnectedListener;)Lcom/netumscan/printersdk/RequestId;`
 
+编译器注解：`@androidx.annotation.NonNull`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
+
+参数 2（从 0 起）注解：`@androidx.annotation.NonNull`。
+
+参数 3（从 0 起）注解：`@androidx.annotation.Nullable`。
+
 <a id="api-eace0338b53324c15ab8"></a>
 
 ### public com.netumscan.printersdk.RequestId disconnect(com.netumscan.printersdk.PrinterManager$Callback<java.lang.Void>)
@@ -2744,6 +2778,10 @@ public com.netumscan.printersdk.RequestId disconnect(com.netumscan.printersdk.Pr
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:9b3300e7a5bc65cd`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/PrinterManager$Callback;)Lcom/netumscan/printersdk/RequestId;`
+
+编译器注解：`@androidx.annotation.NonNull`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
 <a id="api-749f2f0f27db36618600"></a>
 
@@ -2761,6 +2799,12 @@ public com.netumscan.printersdk.RequestId locateNextLabel(com.netumscan.printers
 
 JVM descriptor：`(Lcom/netumscan/printersdk/CpclProfile;ILcom/netumscan/printersdk/PrinterManager$Callback;)Lcom/netumscan/printersdk/RequestId;`
 
+编译器注解：`@androidx.annotation.NonNull`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
+
+参数 2（从 0 起）注解：`@androidx.annotation.NonNull`。
+
 <a id="api-b1350d512c685d6b43f8"></a>
 
 ### public com.netumscan.printersdk.RequestId print(com.netumscan.printersdk.CpclProfile, com.netumscan.printersdk.PrintOptions, com.netumscan.printersdk.PrinterManager$Preparation, com.netumscan.printersdk.PrinterManager$Callback<java.lang.Void>)
@@ -2776,6 +2820,16 @@ profile选择本次编码协议；preparation在后台产生PreparedPrint，opti
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:e9a6f4131a96c701`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/CpclProfile;Lcom/netumscan/printersdk/PrintOptions;Lcom/netumscan/printersdk/PrinterManager$Preparation;Lcom/netumscan/printersdk/PrinterManager$Callback;)Lcom/netumscan/printersdk/RequestId;`
+
+编译器注解：`@androidx.annotation.NonNull`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
+
+参数 1（从 0 起）注解：`@androidx.annotation.NonNull`。
+
+参数 2（从 0 起）注解：`@androidx.annotation.NonNull`。
+
+参数 3（从 0 起）注解：`@androidx.annotation.NonNull`。
 
 <a id="api-0f0f84483fed6f61bc23"></a>
 
@@ -2793,6 +2847,16 @@ profile选择本次编码协议；preparation在后台产生PreparedPrint，opti
 
 JVM descriptor：`(Lcom/netumscan/printersdk/EscPosProfile;Lcom/netumscan/printersdk/PrintOptions;Lcom/netumscan/printersdk/PrinterManager$Preparation;Lcom/netumscan/printersdk/PrinterManager$Callback;)Lcom/netumscan/printersdk/RequestId;`
 
+编译器注解：`@androidx.annotation.NonNull`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
+
+参数 1（从 0 起）注解：`@androidx.annotation.NonNull`。
+
+参数 2（从 0 起）注解：`@androidx.annotation.NonNull`。
+
+参数 3（从 0 起）注解：`@androidx.annotation.NonNull`。
+
 <a id="api-f54cb667a80e5fd96c3e"></a>
 
 ### public com.netumscan.printersdk.RequestId queryStatus(com.netumscan.printersdk.StatusQueryConfig, int, com.netumscan.printersdk.PrinterManager$Callback<com.netumscan.printersdk.StatusResult>)
@@ -2808,6 +2872,12 @@ public com.netumscan.printersdk.RequestId queryStatus(com.netumscan.printersdk.S
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:8cb94bf2e247d99b`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/StatusQueryConfig;ILcom/netumscan/printersdk/PrinterManager$Callback;)Lcom/netumscan/printersdk/RequestId;`
+
+编译器注解：`@androidx.annotation.NonNull`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
+
+参数 2（从 0 起）注解：`@androidx.annotation.NonNull`。
 
 <a id="api-efdba753fb81e704f7f0"></a>
 
@@ -2825,6 +2895,12 @@ public com.netumscan.printersdk.RequestId scanBle(java.util.UUID, int, com.netum
 
 JVM descriptor：`(Ljava/util/UUID;ILcom/netumscan/printersdk/PrinterManager$Callback;)Lcom/netumscan/printersdk/RequestId;`
 
+编译器注解：`@androidx.annotation.NonNull`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.Nullable`。
+
+参数 2（从 0 起）注解：`@androidx.annotation.NonNull`。
+
 <a id="api-89db5e6d23981953297a"></a>
 
 ### public com.netumscan.printersdk.RequestId sdkInfo(com.netumscan.printersdk.PrinterManager$Callback<com.netumscan.printersdk.SdkInfo>)
@@ -2841,6 +2917,10 @@ public com.netumscan.printersdk.RequestId sdkInfo(com.netumscan.printersdk.Print
 
 JVM descriptor：`(Lcom/netumscan/printersdk/PrinterManager$Callback;)Lcom/netumscan/printersdk/RequestId;`
 
+编译器注解：`@androidx.annotation.NonNull`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
+
 <a id="api-b5659199b3bac62370ba"></a>
 
 ### public com.netumscan.printersdk.RequestId sendRaw(byte[], int, int, com.netumscan.printersdk.PrinterManager$Callback<java.lang.Void>)
@@ -2851,11 +2931,17 @@ JVM descriptor：`(Lcom/netumscan/printersdk/PrinterManager$Callback;)Lcom/netum
 public com.netumscan.printersdk.RequestId sendRaw(byte[], int, int, com.netumscan.printersdk.PrinterManager$Callback<java.lang.Void>);
 ```
 
-入口先检查非空、copies 为 1..100、超时为正，否则异步回调 1001；再检查载荷超过 1MiB 返回 1008，恰好等于允许；再检查生命周期返回 1002、64 个未结束业务请求预算返回 1008。有效输入在返回前制作有界快照，最终入队原子复检容量。全部 Raw 与打印、介质、查询共用同一 native FIFO；不解析载荷协议语义。入口拒绝不产生输出，结果仍由一次主线程回调交付。
+原始字节在返回前制作有界快照，大小上限为1MiB；copies和超时在准入时校验。请求仍经过同一native设备队列，与普通打印及查询保持串行顺序。
 
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:4906567398108084`
 
 JVM descriptor：`([BIILcom/netumscan/printersdk/PrinterManager$Callback;)Lcom/netumscan/printersdk/RequestId;`
+
+编译器注解：`@androidx.annotation.NonNull`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
+
+参数 3（从 0 起）注解：`@androidx.annotation.NonNull`。
 
 <a id="api-3c6f9674bbf993229af8"></a>
 
@@ -2872,6 +2958,14 @@ public com.netumscan.printersdk.RequestId setMedia(com.netumscan.printersdk.Medi
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:bba5c8c4158d41a7`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/MediaSettings;Lcom/netumscan/printersdk/CpclProfile;ILcom/netumscan/printersdk/PrinterManager$Callback;)Lcom/netumscan/printersdk/RequestId;`
+
+编译器注解：`@androidx.annotation.NonNull`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
+
+参数 1（从 0 起）注解：`@androidx.annotation.NonNull`。
+
+参数 3（从 0 起）注解：`@androidx.annotation.NonNull`。
 
 <a id="api-99a5653b30edc0f80216"></a>
 
@@ -3017,6 +3111,8 @@ public void cancel(com.netumscan.printersdk.RequestId);
 
 JVM descriptor：`(Lcom/netumscan/printersdk/RequestId;)V`
 
+参数 0（从 0 起）注解：`@androidx.annotation.Nullable`。
+
 <a id="api-a8eff59edaee0576f508"></a>
 
 ## PrinterManager.Callback
@@ -3027,25 +3123,31 @@ JVM descriptor：`(Lcom/netumscan/printersdk/RequestId;)V`
 public interface com.netumscan.printersdk.PrinterManager$Callback<T>
 ```
 
-Manager在主线程异步交付一次ManagerResult；参数错误、状态错误、准备失败、准入失败和native终态都使用同一完成通道。
+Manager在主线程异步交付一次ManagerResult；参数错误、状态错误、准备失败、准入失败和native终态都使用同一完成通道。 `Callback` 是 `@FunctionalInterface`，方法名为 `onComplete`，接收 `@NonNull ManagerResult<T>`，并以 `@MainThread` 声明回调线程；支持 Java lambda 和匿名类。
 
 文档 ID：`android:type:com.netumscan.printersdk.PrinterManager$Callback`
 
-<a id="api-d4c89b1859fbe8158588"></a>
+编译器注解：`@java.lang.FunctionalInterface`。
 
-### public abstract void completed(com.netumscan.printersdk.ManagerResult<T>)
+<a id="api-fda923ad62298237ac93"></a>
+
+### public abstract void onComplete(com.netumscan.printersdk.ManagerResult<T>)
 
 单次业务请求的完成回调。
 
 ```java
-public abstract void completed(com.netumscan.printersdk.ManagerResult<T>);
+public abstract void onComplete(com.netumscan.printersdk.ManagerResult<T>);
 ```
 
-Manager在主线程异步交付一次ManagerResult；参数错误、状态错误、准备失败、准入失败和native终态都使用同一完成通道。
+Manager在主线程异步交付一次ManagerResult；参数错误、状态错误、准备失败、准入失败和native终态都使用同一完成通道。 `Callback` 是 `@FunctionalInterface`，方法名为 `onComplete`，接收 `@NonNull ManagerResult<T>`，并以 `@MainThread` 声明回调线程；支持 Java lambda 和匿名类。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterManager$Callback:a4abf86f61088fa4`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterManager$Callback:ad4a015b2cb5b1b7`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
+
+编译器注解：`@androidx.annotation.MainThread`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
 <a id="api-9149b393dfb876ce6b8e"></a>
 
@@ -3057,25 +3159,31 @@ JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
 public interface com.netumscan.printersdk.PrinterManager$DisconnectedListener
 ```
 
-通知只属于注册时的连接会话；主动disconnect通过自身完成回调报告，旧会话事件不能影响后续连接。
+通知只属于注册时的连接会话；主动disconnect通过自身完成回调报告，旧会话事件不能影响后续连接。 `DisconnectedListener` 是 `@FunctionalInterface`，方法名为 `onDisconnected`，接收 `@NonNull ManagerResult<Void>`，以 `@MainThread` 声明回调线程。
 
 文档 ID：`android:type:com.netumscan.printersdk.PrinterManager$DisconnectedListener`
 
-<a id="api-63a9a27aa8820f2c2db8"></a>
+编译器注解：`@java.lang.FunctionalInterface`。
 
-### public abstract void disconnected(com.netumscan.printersdk.ManagerResult<java.lang.Void>)
+<a id="api-4ba251e1239d4f7bbd7f"></a>
+
+### public abstract void onDisconnected(com.netumscan.printersdk.ManagerResult<java.lang.Void>)
 
 当前连接的意外断连通知。
 
 ```java
-public abstract void disconnected(com.netumscan.printersdk.ManagerResult<java.lang.Void>);
+public abstract void onDisconnected(com.netumscan.printersdk.ManagerResult<java.lang.Void>);
 ```
 
-通知只属于注册时的连接会话；主动disconnect通过自身完成回调报告，旧会话事件不能影响后续连接。
+通知只属于注册时的连接会话；主动disconnect通过自身完成回调报告，旧会话事件不能影响后续连接。 `DisconnectedListener` 是 `@FunctionalInterface`，方法名为 `onDisconnected`，接收 `@NonNull ManagerResult<Void>`，以 `@MainThread` 声明回调线程。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterManager$DisconnectedListener:95c5f6c8a06cc7be`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterManager$DisconnectedListener:bec808a8d85c7ee3`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
+
+编译器注解：`@androidx.annotation.MainThread`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
 <a id="api-926b9d0552ac918f6e21"></a>
 
@@ -3087,9 +3195,11 @@ JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
 public interface com.netumscan.printersdk.PrinterManager$Preparation
 ```
 
-在Manager后台工作线程执行，接收CancellationContext并返回PreparedPrint。可抛出准备错误；不得在此执行设备IO或假定清理会等待不合作的准备代码。
+在Manager后台工作线程执行，接收CancellationContext并返回PreparedPrint。可抛出准备错误；不得在此执行设备IO或假定清理会等待不合作的准备代码。 `Preparation` 是 `@FunctionalInterface`；`prepare` 以 `@WorkerThread` 声明后台准备，取消上下文与返回的 `PreparedPrint` 均为 `@NonNull`。
 
 文档 ID：`android:type:com.netumscan.printersdk.PrinterManager$Preparation`
+
+编译器注解：`@java.lang.FunctionalInterface`。
 
 <a id="api-71d53807452a19f29817"></a>
 
@@ -3101,11 +3211,15 @@ public interface com.netumscan.printersdk.PrinterManager$Preparation
 public abstract com.netumscan.printersdk.PreparedPrint prepare(com.netumscan.printersdk.CancellationContext) throws java.lang.Exception;
 ```
 
-在Manager后台工作线程执行，接收CancellationContext并返回PreparedPrint。可抛出准备错误；不得在此执行设备IO或假定清理会等待不合作的准备代码。
+在Manager后台工作线程执行，接收CancellationContext并返回PreparedPrint。可抛出准备错误；不得在此执行设备IO或假定清理会等待不合作的准备代码。 `Preparation` 是 `@FunctionalInterface`；`prepare` 以 `@WorkerThread` 声明后台准备，取消上下文与返回的 `PreparedPrint` 均为 `@NonNull`。
 
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager$Preparation:8098e318858ba01d`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/CancellationContext;)Lcom/netumscan/printersdk/PreparedPrint;`
+
+编译器注解：`@androidx.annotation.NonNull`、`@androidx.annotation.WorkerThread`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
 <a id="api-764c5a4147cfdf641cc3"></a>
 
@@ -3415,7 +3529,7 @@ JVM descriptor：`Ljava/lang/String;`
 public final class com.netumscan.printersdk.StatusQueryConfig
 ```
 
-与打印几何、纸宽和 DPI 独立，接纳时复制，不改变连接默认值。CPCL/ESC_POS 当前未验证状态指令，因此查询同步返回 1004 UNSUPPORTED_OPERATION 且零打印机 IO；硬件仍未知。
+与打印几何、纸宽和 DPI 独立，接纳时复制，不改变连接默认值。通过参数和生命周期校验后，标准 CPCL/ESC/POS 后端因不支持状态查询而拒绝时，`queryStatus` 通过主线程完成回调异步返回 1004 UNSUPPORTED_OPERATION，不执行打印机 IO。未连接、已关闭或参数非法等情况仍返回相应校验错误；硬件状态仍未知。
 
 文档 ID：`android:type:com.netumscan.printersdk.StatusQueryConfig`
 

@@ -1,6 +1,6 @@
 # API 与生命周期
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.4`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.5`
 
 通过构造器创建独立 `PrinterManager`，每个实例至多管理一个连接，不使用共享单例。
 连接参数只描述通信；每次打印单独提供经确认的 Profile 和 `PreparedPrint`。

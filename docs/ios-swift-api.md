@@ -1,13 +1,13 @@
 # iOS Swift API 参考
 
-发布候选版本 **0.3.0-preview.4**；原生 SDK **0.3.0**；C ABI **3/r2**。
+发布候选版本 **0.3.0-preview.5**；原生 SDK **0.3.0**；C ABI **3/r2**。
 
 本页逐项覆盖审定的编译器公共 API 基线，共 **275** 个文档条目。
 声明、JVM descriptor、常量、枚举和编译器关系均来自基线，说明按稳定文档 ID 维护。
 机器可读的完整基线与说明见 [api-reference.json](api-reference.json)；运行
 `python3 tools/check-api-reference.py` 可检查覆盖范围、审定 SHA-256 和本页字节一致性。
 
-基线 SHA-256：`e2f8e9b815eda327ea9e573fc014a5964d73b4d834394091ced9968c1765b19b`
+基线 SHA-256：`affaba2490e4db54029a34867b9774917b0cb07e928276742609533e9ccd9169`
 
 运行约束与错误处理见 [API 与生命周期](api-lifecycle.md) 和 [错误码与排障](errors-troubleshooting.md)。
 本页是未发布的发布候选契约，不代表发布制品或公开历史证明。硬件验收仍暂缓，`hardware_verified=false`。
@@ -196,7 +196,7 @@ let creditFlowControl: BLECreditFlowControl?
 init(service: UUID, writeCharacteristic: UUID, withResponse: Bool, maxWriteBytes: Int, creditFlowControl: BLECreditFlowControl? = nil) throws
 ```
 
-`service` 为包含各目标特征的服务 UUID，`writeCharacteristic` 为写入特征 UUID；`withResponse` 选择 GATT 有响应/无响应写入，无默认值。`maxWriteBytes` 为每次平台写入的应用上限，单位字节，必须在 1…512；实际包长还受系统和固件流控容量限制。`creditFlowControl` 默认 `nil`；非空时仅允许 `withResponse == false`，且写入、Data Out 和 Data FC 三个特征 UUID 必须互不相同。上述条件不满足抛 1001。初始化只校验配置，不发现服务、不连接、不确认固件支持；特征能力在连接时验证，失败可抛 1004。
+`service` 为包含各目标特征的服务 UUID，`writeCharacteristic` 为写入特征 UUID；`withResponse` 选择 GATT 有响应/无响应写入，无默认值。`maxWriteBytes` 为每次平台写入的应用上限，单位字节，必须在 1…512；实际单包长度还受系统写入上限和启用流控时固件通知的独立 `packetLimit` 限制。Credit 单独控制剩余发送次数，每发送一包消耗 1 个，不表示可发送字节数。`creditFlowControl` 默认 `nil`；非空时仅允许 `withResponse == false`，且写入、Data Out 和 Data FC 三个特征 UUID 必须互不相同。上述条件不满足时，初始化同步抛出 1001。初始化只校验配置，不发现服务、不连接、不确认固件支持；特征能力在连接时验证，不支持时通过连接完成回调异步返回 1004。
 
 文档 ID：`apple:symbol:s:10PrinterSDK10BLEOptionsV7service19writeCharacteristic12withResponse13maxWriteBytes17creditFlowControlAC10Foundation4UUIDV_AKSbSiAA09BLECreditmN0VSgtKcfc`
 
@@ -595,7 +595,7 @@ let dpi: UInt32
 let form: Bool
 ```
 
-true 表示下一标签起点结束，false 表示内容结束；初始化时必填。Manager 不自动继承此保留字段；本次 PreparedPrint 的 LabelJobOptions 显式提供结束策略。它不设置介质类型、不校准传感器，也不影响 Raw。
+true 请求下一标签起点结束，false 请求内容结束；没有隐式默认值，初始化时必填。`submitGray8(form: nil)` 取此值，显式传 true/false 只覆盖当前作业。它不设置纸张类型、不做传感器校准，也不影响原始字节发送。
 
 文档 ID：`apple:symbol:s:10PrinterSDK11CpclProfileV4formSbvp`
 
@@ -684,7 +684,7 @@ let widthDots: UInt32
 let xOffsetDots: UInt32
 ```
 
-单位为点，构造参数默认 0，须小于配置打印宽度。Manager 不自动继承此保留字段；本次 PreparedPrint 的 LabelJobOptions 显式提供原点。Raw 原样发送，不应用此偏移；SDK 不推断居中装纸位置。
+单位为点，构造参数默认 0，须小于配置打印宽度。`submitGray8(originXDots: nil)` 使用此值；每次提交独立保存原点，显式覆盖不会修改 profile。Raw 原样发送，不应用此偏移；SDK 不自动推断居中装纸位置。
 
 文档 ID：`apple:symbol:s:10PrinterSDK11CpclProfileV11xOffsetDotss6UInt32Vvp`
 
@@ -710,7 +710,7 @@ let xOffsetDots: UInt32
 enum CutMode
 ```
 
-用于 ReceiptFinishOptions。当前标准 ESC/POS 后端未实现结构化切纸，非 none 请求在首次 IO 前拒绝，不会静默省略。枚举项是契约选项，不是设备具有切刀的证据。
+传给 `submitReceiptGray8(cut:)`；当前标准 ESC/POS 后端未实现切纸，非 `.none` 请求会在首次 IO 前拒绝，不会静默省略。枚举项是契约选项，不是设备具有切刀的证据。
 
 文档 ID：`apple:symbol:s:10PrinterSDK7CutModeO`
 
@@ -860,7 +860,7 @@ init?(rawValue: UInt32)
 case none
 ```
 
-不请求切纸；PreparedPrint 的 ReceiptFinishOptions 仍可显式提供尾部留白及结束范围。该选项不关闭设备，也不承诺自动撕纸位置。
+为 `submitReceiptGray8` 的默认值；仍可根据 `trailingBlankDots` 与 `finishScope` 发送尾部留白。它不关闭设备，也不承诺自动撕纸位置。
 
 文档 ID：`apple:symbol:s:10PrinterSDK7CutModeO4noneyA2CmF`
 
@@ -1252,7 +1252,7 @@ let supportedValues: UInt32
 enum FinishScope
 ```
 
-用于 ReceiptFinishOptions 描述的小票结束策略；范围影响整单长度预算和结束动作次数，不改变份数。不支持的组合在 IO 前拒绝；不得将多份拆成多次入队来替代一个原子作业。
+配合 `submitReceiptGray8(finishScope:)` 使用；范围影响整单长度预算与结束动作次数，不改变份数。不支持的策略组合在 IO 前明确拒绝，不能把多份拆为循环入队来替代一个原子队列条目。
 
 文档 ID：`apple:symbol:s:10PrinterSDK11FinishScopeO`
 
@@ -4253,7 +4253,7 @@ case receipt
 case status
 ```
 
-当前标准 CPCL/ESC/POS 后端未实现，`queryStatus` 明确抛 1004；该能力项不代表可读取缺纸、开盖或就绪状态。
+当前标准 CPCL/ESC/POS 后端未实现状态查询。通过参数和生命周期校验后，`queryStatus` 因该能力不受支持而拒绝时，通过主线程完成回调异步返回 1004 UNSUPPORTED_OPERATION，不执行打印机 IO；未连接、已关闭或参数非法等情况仍返回相应校验错误。该能力项不代表可读取缺纸、开盖或就绪状态。
 
 文档 ID：`apple:symbol:s:10PrinterSDK0A7FeatureO6statusyA2CmF`
 
@@ -4455,25 +4455,25 @@ nil表示未知，不能解释为零、无限或不支持。当前纯通信设�
 final class PrinterManager
 ```
 
-通过构造器创建独立实例；连接、发现、打印、控制、查询和清理均由此入口管理。请求立即返回标识，完成结果异步投递到主线程；准备与准入保持请求顺序，打印机IO始终由native设备队列串行执行，不自动重连、重放或重试。
+通过构造器创建独立实例；连接、发现、打印、控制、查询和清理均由此入口管理。请求立即返回标识，完成结果异步投递到主线程；准备与准入保持请求顺序，打印机IO始终由native设备队列串行执行，不自动重连、重放或重试。 只有完成及意外断连闭包隔离到 `@MainActor`；Manager 本身可从非主执行器调用，准备闭包继续在后台执行。
 
 文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC`
 
 符号种类：`swift.class`；访问级别：`public`。
 
-<a id="api-ebb248eaaabe130232c3"></a>
+<a id="api-17fa147346962a6d9ca4"></a>
 
 ### PrinterManager.bondedDevices(completion:)
 
-枚举系统已配对的经典蓝牙设备。
+请求枚举系统已配对蓝牙设备（iOS 不支持）。
 
 ```swift
-@discardableResult func bondedDevices(completion: @escaping @Sendable (ManagerResult<[DiscoveredPrinter]>) -> Void) -> RequestID
+@discardableResult func bondedDevices(completion: @escaping @MainActor @Sendable (ManagerResult<[DiscoveredPrinter]>) -> Void) -> RequestID
 ```
 
-Android通过Manager异步返回只读设备列表；iOS不提供SPP配对枚举，使用同一异步完成通道返回Unsupported，不发起隐式配对。
+当前 iOS 不提供系统已配对蓝牙设备枚举。通过 Manager 生命周期校验后，通过主线程完成回调异步返回 1004 UNSUPPORTED_OPERATION；已关闭等情况仍返回相应生命周期错误。不发起隐式配对，也不将 BLE 扫描结果当作已配对设备列表。 完成闭包声明为 `@escaping @MainActor @Sendable`，异步在主执行器交付；可直接访问 `@MainActor` UI 状态。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC13bondedDevices10completionAA9RequestIDVyAA0C6ResultVySayAA010DiscoveredA0VGGYbc_tF`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC13bondedDevices10completionAA9RequestIDVyAA0C6ResultVySayAA010DiscoveredA0VGGYbScMYcc_tF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -4482,6 +4482,7 @@ Android通过Manager异步返回只读设备列表；iOS不提供SPP配对枚举
 | 名称 | precise identifier |
 | --- | --- |
 | DiscoveredPrinter | `s:10PrinterSDK010DiscoveredA0V` |
+| MainActor | `s:ScM` |
 | ManagerResult | `s:10PrinterSDK13ManagerResultV` |
 | RequestID | `s:10PrinterSDK9RequestIDV` |
 | Void | `s:s4Voida` |
@@ -4508,19 +4509,19 @@ func cancel(_ requestID: RequestID)
 | --- | --- |
 | RequestID | `s:10PrinterSDK9RequestIDV` |
 
-<a id="api-e14d59219b4f9bbd09d9"></a>
+<a id="api-de266a4346e17581587d"></a>
 
 ### PrinterManager.capabilities(completion:)
 
 读取当前设备的能力描述。
 
 ```swift
-@discardableResult func capabilities(completion: @escaping @Sendable (ManagerResult<PrinterCapabilities>) -> Void) -> RequestID
+@discardableResult func capabilities(completion: @escaping @MainActor @Sendable (ManagerResult<PrinterCapabilities>) -> Void) -> RequestID
 ```
 
-异步交付PrinterCapabilities；未知或不支持的能力应按描述处理，能力查询不执行自动打印探测，也不替代每次请求的准入校验。
+异步交付PrinterCapabilities；未知或不支持的能力应按描述处理，能力查询不执行自动打印探测，也不替代每次请求的准入校验。 完成闭包声明为 `@escaping @MainActor @Sendable`，异步在主执行器交付；可直接访问 `@MainActor` UI 状态。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC12capabilities10completionAA9RequestIDVyAA0C6ResultVyAA0A12CapabilitiesVGYbc_tF`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC12capabilities10completionAA9RequestIDVyAA0C6ResultVyAA0A12CapabilitiesVGYbScMYcc_tF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -4528,24 +4529,25 @@ func cancel(_ requestID: RequestID)
 
 | 名称 | precise identifier |
 | --- | --- |
+| MainActor | `s:ScM` |
 | ManagerResult | `s:10PrinterSDK13ManagerResultV` |
 | PrinterCapabilities | `s:10PrinterSDK0A12CapabilitiesV` |
 | RequestID | `s:10PrinterSDK9RequestIDV` |
 | Void | `s:s4Voida` |
 
-<a id="api-5cf86e37466fab588b44"></a>
+<a id="api-e260c729de54e181e4e5"></a>
 
 ### PrinterManager.close(completion:)
 
 永久关闭Manager并释放其连接资源。
 
 ```swift
-@discardableResult func close(completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID
+@discardableResult func close(completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID
 ```
 
-这是幂等的异步清理屏障；所有属于该会话的请求终态先交付，清理完成后再交付close回调。关闭后业务请求异步返回InvalidState。
+这是幂等的异步清理屏障；所有属于该会话的请求终态先交付，清理完成后再交付close回调。关闭后业务请求异步返回InvalidState。 完成闭包声明为 `@escaping @MainActor @Sendable`，异步在主执行器交付；可直接访问 `@MainActor` UI 状态。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC5close10completionAA9RequestIDVyAA0C6ResultVyytGYbc_tF`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC5close10completionAA9RequestIDVyAA0C6ResultVyytGYbScMYcc_tF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -4553,23 +4555,24 @@ func cancel(_ requestID: RequestID)
 
 | 名称 | precise identifier |
 | --- | --- |
+| MainActor | `s:ScM` |
 | ManagerResult | `s:10PrinterSDK13ManagerResultV` |
 | RequestID | `s:10PrinterSDK9RequestIDV` |
 | Void | `s:s4Voida` |
 
-<a id="api-fd2f74dea7cb35e56d69"></a>
+<a id="api-2d85ca74f1741c0a6a2f"></a>
 
 ### PrinterManager.connect(bleIdentifier:options:timeoutMilliseconds:completion:onDisconnected:)
 
 连接指定设备。
 
 ```swift
-@discardableResult func connect(bleIdentifier: UUID, options: BLEOptions, timeoutMilliseconds: UInt32 = 5000, completion: @escaping @Sendable (ManagerResult<Void>) -> Void, onDisconnected: @escaping @Sendable (ManagerResult<Void>) -> Void = { _ in }) -> RequestID
+@discardableResult func connect(bleIdentifier: UUID, options: BLEOptions, timeoutMilliseconds: UInt32 = 5000, completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void, onDisconnected: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void = { _ in }) -> RequestID
 ```
 
-立即返回请求标识；连接成功或失败通过主线程完成回调交付。每个Manager至多拥有一个设备连接，意外断连通过本次连接的onDisconnected通知，不自动重连。
+立即返回请求标识；连接成功或失败通过主线程完成回调交付。每个Manager至多拥有一个设备连接，意外断连通过本次连接的onDisconnected通知，不自动重连。 完成闭包声明为 `@escaping @MainActor @Sendable`，异步在主执行器交付；可直接访问 `@MainActor` UI 状态。 `onDisconnected` 同样使用 `@MainActor @Sendable`；显式保存闭包时须保留该隔离类型。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC7connect13bleIdentifier7options19timeoutMilliseconds10completion14onDisconnectedAA9RequestIDV10Foundation4UUIDV_AA10BLEOptionsVs6UInt32VyAA0C6ResultVyytGYbcyAUYbctF`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC7connect13bleIdentifier7options19timeoutMilliseconds10completion14onDisconnectedAA9RequestIDV10Foundation4UUIDV_AA10BLEOptionsVs6UInt32VyAA0C6ResultVyytGYbScMYccyAUYbScMYcctF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -4578,25 +4581,26 @@ func cancel(_ requestID: RequestID)
 | 名称 | precise identifier |
 | --- | --- |
 | BLEOptions | `s:10PrinterSDK10BLEOptionsV` |
+| MainActor | `s:ScM` |
 | ManagerResult | `s:10PrinterSDK13ManagerResultV` |
 | RequestID | `s:10PrinterSDK9RequestIDV` |
 | UInt32 | `s:s6UInt32V` |
 | UUID | `s:10Foundation4UUIDV` |
 | Void | `s:s4Voida` |
 
-<a id="api-d7c58381e8538fbd09c5"></a>
+<a id="api-87b5c726b74156715212"></a>
 
 ### PrinterManager.disconnect(completion:)
 
 关闭当前连接并结束本会话请求。
 
 ```swift
-@discardableResult func disconnect(completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID
+@discardableResult func disconnect(completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID
 ```
 
-尽快取消等待、准备和native任务并异步释放资源；清理完成后才可显式连接新设备。不合作的准备代码可以迟到返回，但结果不会再次准入。
+尽快取消等待、准备和native任务并异步释放资源；清理完成后才可显式连接新设备。不合作的准备代码可以迟到返回，但结果不会再次准入。 完成闭包声明为 `@escaping @MainActor @Sendable`，异步在主执行器交付；可直接访问 `@MainActor` UI 状态。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC10disconnect10completionAA9RequestIDVyAA0C6ResultVyytGYbc_tF`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC10disconnect10completionAA9RequestIDVyAA0C6ResultVyytGYbScMYcc_tF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -4604,23 +4608,24 @@ func cancel(_ requestID: RequestID)
 
 | 名称 | precise identifier |
 | --- | --- |
+| MainActor | `s:ScM` |
 | ManagerResult | `s:10PrinterSDK13ManagerResultV` |
 | RequestID | `s:10PrinterSDK9RequestIDV` |
 | Void | `s:s4Voida` |
 
-<a id="api-d8eb0d5eb06081170f67"></a>
+<a id="api-422035c4c1c41c4d2d04"></a>
 
 ### PrinterManager.feedToNextLabel(profile:timeoutMilliseconds:completion:)
 
 提交定位下一张标签请求。
 
 ```swift
-@discardableResult func feedToNextLabel(profile: CpclProfile, timeoutMilliseconds: UInt32 = 120000, completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID
+@discardableResult func feedToNextLabel(profile: CpclProfile, timeoutMilliseconds: UInt32 = 120000, completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID
 ```
 
-指定CpclProfile并在同一native设备队列执行；仅在设备profile声明支持时可用，不自行猜测定位命令。
+指定CpclProfile并在同一native设备队列执行；仅在设备profile声明支持时可用，不自行猜测定位命令。 完成闭包声明为 `@escaping @MainActor @Sendable`，异步在主执行器交付；可直接访问 `@MainActor` UI 状态。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC15feedToNextLabel7profile19timeoutMilliseconds10completionAA9RequestIDVAA11CpclProfileV_s6UInt32VyAA0C6ResultVyytGYbctF`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC15feedToNextLabel7profile19timeoutMilliseconds10completionAA9RequestIDVAA11CpclProfileV_s6UInt32VyAA0C6ResultVyytGYbScMYcctF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -4629,6 +4634,7 @@ func cancel(_ requestID: RequestID)
 | 名称 | precise identifier |
 | --- | --- |
 | CpclProfile | `s:10PrinterSDK11CpclProfileV` |
+| MainActor | `s:ScM` |
 | ManagerResult | `s:10PrinterSDK13ManagerResultV` |
 | RequestID | `s:10PrinterSDK9RequestIDV` |
 | UInt32 | `s:s6UInt32V` |
@@ -4650,19 +4656,19 @@ init()
 
 符号种类：`swift.init`；访问级别：`public`。
 
-<a id="api-d7b42e18cdcc63d264fc"></a>
+<a id="api-928bc48731dc66ed41b9"></a>
 
 ### PrinterManager.print(profile:options:preparation:completion:)
 
 准备并提交一次标签或小票打印请求。
 
 ```swift
-@discardableResult func print(profile: CpclProfile, options: PrintOptions = PrintOptions(), preparation: @escaping @Sendable (CancellationContext) throws -> PreparedPrint, completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID
+@discardableResult func print(profile: CpclProfile, options: PrintOptions = PrintOptions(), preparation: @escaping @Sendable (CancellationContext) throws -> PreparedPrint, completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID
 ```
 
-profile选择本次编码协议；preparation在后台产生PreparedPrint，options限制总超时。调用顺序决定准备准入顺序，完成回调区分dataSent与deviceConfirmed；任何失败都不自动重试或重放。
+profile选择本次编码协议；preparation在后台产生PreparedPrint，options限制总超时。调用顺序决定准备准入顺序，完成回调区分dataSent与deviceConfirmed；任何失败都不自动重试或重放。 完成闭包声明为 `@escaping @MainActor @Sendable`，异步在主执行器交付；可直接访问 `@MainActor` UI 状态。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC5print7profile7options11preparation10completionAA9RequestIDVAA11CpclProfileV_AA12PrintOptionsVAA08PreparedM0VAA19CancellationContextCYbKcyAA0C6ResultVyytGYbctF`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC5print7profile7options11preparation10completionAA9RequestIDVAA11CpclProfileV_AA12PrintOptionsVAA08PreparedM0VAA19CancellationContextCYbKcyAA0C6ResultVyytGYbScMYcctF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -4672,25 +4678,26 @@ profile选择本次编码协议；preparation在后台产生PreparedPrint，opti
 | --- | --- |
 | CancellationContext | `s:10PrinterSDK19CancellationContextC` |
 | CpclProfile | `s:10PrinterSDK11CpclProfileV` |
+| MainActor | `s:ScM` |
 | ManagerResult | `s:10PrinterSDK13ManagerResultV` |
 | PreparedPrint | `s:10PrinterSDK13PreparedPrintV` |
 | PrintOptions | `s:10PrinterSDK12PrintOptionsV` |
 | RequestID | `s:10PrinterSDK9RequestIDV` |
 | Void | `s:s4Voida` |
 
-<a id="api-f99ea804160d66ba036e"></a>
+<a id="api-8c64dfac9316f06f20e2"></a>
 
 ### PrinterManager.print(profile:options:preparation:completion:)
 
 准备并提交一次标签或小票打印请求。
 
 ```swift
-@discardableResult func print(profile: ReceiptProfile, options: PrintOptions = PrintOptions(), preparation: @escaping @Sendable (CancellationContext) throws -> PreparedPrint, completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID
+@discardableResult func print(profile: ReceiptProfile, options: PrintOptions = PrintOptions(), preparation: @escaping @Sendable (CancellationContext) throws -> PreparedPrint, completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID
 ```
 
-profile选择本次编码协议；preparation在后台产生PreparedPrint，options限制总超时。调用顺序决定准备准入顺序，完成回调区分dataSent与deviceConfirmed；任何失败都不自动重试或重放。
+profile选择本次编码协议；preparation在后台产生PreparedPrint，options限制总超时。调用顺序决定准备准入顺序，完成回调区分dataSent与deviceConfirmed；任何失败都不自动重试或重放。 完成闭包声明为 `@escaping @MainActor @Sendable`，异步在主执行器交付；可直接访问 `@MainActor` UI 状态。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC5print7profile7options11preparation10completionAA9RequestIDVAA14ReceiptProfileV_AA12PrintOptionsVAA08PreparedM0VAA19CancellationContextCYbKcyAA0C6ResultVyytGYbctF`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC5print7profile7options11preparation10completionAA9RequestIDVAA14ReceiptProfileV_AA12PrintOptionsVAA08PreparedM0VAA19CancellationContextCYbKcyAA0C6ResultVyytGYbScMYcctF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -4699,6 +4706,7 @@ profile选择本次编码协议；preparation在后台产生PreparedPrint，opti
 | 名称 | precise identifier |
 | --- | --- |
 | CancellationContext | `s:10PrinterSDK19CancellationContextC` |
+| MainActor | `s:ScM` |
 | ManagerResult | `s:10PrinterSDK13ManagerResultV` |
 | PreparedPrint | `s:10PrinterSDK13PreparedPrintV` |
 | PrintOptions | `s:10PrinterSDK12PrintOptionsV` |
@@ -4706,19 +4714,19 @@ profile选择本次编码协议；preparation在后台产生PreparedPrint，opti
 | RequestID | `s:10PrinterSDK9RequestIDV` |
 | Void | `s:s4Voida` |
 
-<a id="api-d55bab90e3229809e298"></a>
+<a id="api-26753b61bd282f8b23ef"></a>
 
 ### PrinterManager.queryStatus(configuration:timeoutMilliseconds:completion:)
 
 提交硬件状态查询请求。
 
 ```swift
-@discardableResult func queryStatus(configuration: StatusQueryConfiguration, timeoutMilliseconds: UInt32 = 5000, completion: @escaping @Sendable (ManagerResult<StatusResult>) -> Void) -> RequestID
+@discardableResult func queryStatus(configuration: StatusQueryConfiguration, timeoutMilliseconds: UInt32 = 5000, completion: @escaping @MainActor @Sendable (ManagerResult<StatusResult>) -> Void) -> RequestID
 ```
 
-配置明确协议请求、响应和超时；请求/响应事务占用同一设备队列。结果通过StatusResult报告已知位与活动位，不支持查询时异步失败。
+配置明确协议请求、响应和超时；请求/响应事务占用同一设备队列。结果通过StatusResult报告已知位与活动位，不支持查询时异步失败。 完成闭包声明为 `@escaping @MainActor @Sendable`，异步在主执行器交付；可直接访问 `@MainActor` UI 状态。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC11queryStatus13configuration19timeoutMilliseconds10completionAA9RequestIDVAA0E18QueryConfigurationV_s6UInt32VyAA0C6ResultVyAA0eO0VGYbctF`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC11queryStatus13configuration19timeoutMilliseconds10completionAA9RequestIDVAA0E18QueryConfigurationV_s6UInt32VyAA0C6ResultVyAA0eO0VGYbScMYcctF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -4726,6 +4734,7 @@ profile选择本次编码协议；preparation在后台产生PreparedPrint，opti
 
 | 名称 | precise identifier |
 | --- | --- |
+| MainActor | `s:ScM` |
 | ManagerResult | `s:10PrinterSDK13ManagerResultV` |
 | RequestID | `s:10PrinterSDK9RequestIDV` |
 | StatusQueryConfiguration | `s:10PrinterSDK24StatusQueryConfigurationV` |
@@ -4733,19 +4742,19 @@ profile选择本次编码协议；preparation在后台产生PreparedPrint，opti
 | UInt32 | `s:s6UInt32V` |
 | Void | `s:s4Voida` |
 
-<a id="api-c0e7477eff9e8142c950"></a>
+<a id="api-f8b99ae9c4ce71b52e8f"></a>
 
 ### PrinterManager.scanBLE(seconds:service:completion:)
 
 枚举一段时间内发现的BLE设备。
 
 ```swift
-@discardableResult func scanBLE(seconds: TimeInterval = 10, service: UUID? = nil, completion: @escaping @Sendable (ManagerResult<[DiscoveredPrinter]>) -> Void) -> RequestID
+@discardableResult func scanBLE(seconds: TimeInterval = 10, service: UUID? = nil, completion: @escaping @MainActor @Sendable (ManagerResult<[DiscoveredPrinter]>) -> Void) -> RequestID
 ```
 
-服务过滤和扫描时长由请求给定，结果只含只读DiscoveredPrinter数据；扫描由Manager持有并可按请求标识取消。
+服务过滤和扫描时长由请求给定，结果只含只读DiscoveredPrinter数据；扫描由Manager持有并可按请求标识取消。 完成闭包声明为 `@escaping @MainActor @Sendable`，异步在主执行器交付；可直接访问 `@MainActor` UI 状态。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC7scanBLE7seconds7service10completionAA9RequestIDVSd_10Foundation4UUIDVSgyAA0C6ResultVySayAA010DiscoveredA0VGGYbctF`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC7scanBLE7seconds7service10completionAA9RequestIDVSd_10Foundation4UUIDVSgyAA0C6ResultVySayAA010DiscoveredA0VGGYbScMYcctF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -4754,25 +4763,26 @@ profile选择本次编码协议；preparation在后台产生PreparedPrint，opti
 | 名称 | precise identifier |
 | --- | --- |
 | DiscoveredPrinter | `s:10PrinterSDK010DiscoveredA0V` |
+| MainActor | `s:ScM` |
 | ManagerResult | `s:10PrinterSDK13ManagerResultV` |
 | RequestID | `s:10PrinterSDK9RequestIDV` |
 | TimeInterval | `c:@T@NSTimeInterval` |
 | UUID | `s:10Foundation4UUIDV` |
 | Void | `s:s4Voida` |
 
-<a id="api-914c8d55d77dce129969"></a>
+<a id="api-b2b88a9b9daf0fc19e3c"></a>
 
 ### PrinterManager.sdkInfo(completion:)
 
 读取已加载SDK的身份信息。
 
 ```swift
-@discardableResult func sdkInfo(completion: @escaping @Sendable (ManagerResult<SDKInfo>) -> Void) -> RequestID
+@discardableResult func sdkInfo(completion: @escaping @MainActor @Sendable (ManagerResult<SDKInfo>) -> Void) -> RequestID
 ```
 
-异步交付分发版本、native版本及ABI版本/修订，用于本地集成诊断；该值不等同于硬件验证证明。
+异步交付分发版本、native版本及ABI版本/修订，用于本地集成诊断；该值不等同于硬件验证证明。 完成闭包声明为 `@escaping @MainActor @Sendable`，异步在主执行器交付；可直接访问 `@MainActor` UI 状态。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC7sdkInfo10completionAA9RequestIDVyAA0C6ResultVyAA7SDKInfoVGYbc_tF`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC7sdkInfo10completionAA9RequestIDVyAA0C6ResultVyAA7SDKInfoVGYbScMYcc_tF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -4780,24 +4790,25 @@ profile选择本次编码协议；preparation在后台产生PreparedPrint，opti
 
 | 名称 | precise identifier |
 | --- | --- |
+| MainActor | `s:ScM` |
 | ManagerResult | `s:10PrinterSDK13ManagerResultV` |
 | RequestID | `s:10PrinterSDK9RequestIDV` |
 | SDKInfo | `s:10PrinterSDK7SDKInfoV` |
 | Void | `s:s4Voida` |
 
-<a id="api-b0b877871bf6897384ec"></a>
+<a id="api-a9dcca909185f4ada8e0"></a>
 
 ### PrinterManager.sendRaw(_:copies:timeoutMilliseconds:completion:)
 
 发送显式原始命令请求。
 
 ```swift
-@discardableResult func sendRaw(_ bytes: Data, copies: UInt32 = 1, timeoutMilliseconds: UInt32 = 120000, completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID
+@discardableResult func sendRaw(_ bytes: Data, copies: UInt32 = 1, timeoutMilliseconds: UInt32 = 120000, completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID
 ```
 
-入口先检查非空、copies 为 1..100、超时为正，否则异步回调 1001；再检查载荷超过 1MiB 返回 1008，恰好等于允许；再检查生命周期返回 1002、64 个未结束业务请求预算返回 1008。有效输入在返回前制作有界快照，最终入队原子复检容量。全部 Raw 与打印、介质、查询共用同一 native FIFO；不解析载荷协议语义。入口拒绝不产生输出，结果仍由一次主线程回调交付。
+原始字节在返回前制作有界快照，大小上限为1MiB；copies和超时在准入时校验。请求仍经过同一native设备队列，与普通打印及查询保持串行顺序。 完成闭包声明为 `@escaping @MainActor @Sendable`，异步在主执行器交付；可直接访问 `@MainActor` UI 状态。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC7sendRaw_6copies19timeoutMilliseconds10completionAA9RequestIDV10Foundation4DataV_s6UInt32VANyAA0C6ResultVyytGYbctF`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC7sendRaw_6copies19timeoutMilliseconds10completionAA9RequestIDV10Foundation4DataV_s6UInt32VANyAA0C6ResultVyytGYbScMYcctF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -4806,24 +4817,25 @@ profile选择本次编码协议；preparation在后台产生PreparedPrint，opti
 | 名称 | precise identifier |
 | --- | --- |
 | Data | `s:10Foundation4DataV` |
+| MainActor | `s:ScM` |
 | ManagerResult | `s:10PrinterSDK13ManagerResultV` |
 | RequestID | `s:10PrinterSDK9RequestIDV` |
 | UInt32 | `s:s6UInt32V` |
 | Void | `s:s4Voida` |
 
-<a id="api-e373a7328c3abd50cf2b"></a>
+<a id="api-d2f77c3c618503d332d6"></a>
 
 ### PrinterManager.setMedia(_:profile:timeoutMilliseconds:completion:)
 
 提交介质设置控制请求。
 
 ```swift
-@discardableResult func setMedia(_ settings: MediaSettings, profile: CpclProfile, timeoutMilliseconds: UInt32 = 120000, completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID
+@discardableResult func setMedia(_ settings: MediaSettings, profile: CpclProfile, timeoutMilliseconds: UInt32 = 120000, completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID
 ```
 
-使用MediaSettings和明确CpclProfile描述设置，能力与参数经校验后在同一设备队列执行；不支持的字段返回稳定错误，不依据型号猜测支持。
+使用MediaSettings和明确CpclProfile描述设置，能力与参数经校验后在同一设备队列执行；不支持的字段返回稳定错误，不依据型号猜测支持。 完成闭包声明为 `@escaping @MainActor @Sendable`，异步在主执行器交付；可直接访问 `@MainActor` UI 状态。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC8setMedia_7profile19timeoutMilliseconds10completionAA9RequestIDVAA0E8SettingsV_AA11CpclProfileVs6UInt32VyAA0C6ResultVyytGYbctF`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC8setMedia_7profile19timeoutMilliseconds10completionAA9RequestIDVAA0E8SettingsV_AA11CpclProfileVs6UInt32VyAA0C6ResultVyytGYbScMYcctF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -4832,25 +4844,26 @@ profile选择本次编码协议；preparation在后台产生PreparedPrint，opti
 | 名称 | precise identifier |
 | --- | --- |
 | CpclProfile | `s:10PrinterSDK11CpclProfileV` |
+| MainActor | `s:ScM` |
 | ManagerResult | `s:10PrinterSDK13ManagerResultV` |
 | MediaSettings | `s:10PrinterSDK13MediaSettingsV` |
 | RequestID | `s:10PrinterSDK9RequestIDV` |
 | UInt32 | `s:s6UInt32V` |
 | Void | `s:s4Voida` |
 
-<a id="api-60016c8e0d0bb72ca5e8"></a>
+<a id="api-88bd74674482fbece62d"></a>
 
 ### PrinterManager.setMediaMode(_:profile:timeoutMilliseconds:completion:)
 
 提交介质跟踪模式控制请求。
 
 ```swift
-@discardableResult func setMediaMode(_ mode: MediaMode, profile: CpclProfile, timeoutMilliseconds: UInt32 = 120000, completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID
+@discardableResult func setMediaMode(_ mode: MediaMode, profile: CpclProfile, timeoutMilliseconds: UInt32 = 120000, completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID
 ```
 
-使用显式MediaMode和CpclProfile；能力与参数经校验后在同一设备队列执行，不支持时通过完成回调返回稳定错误。
+使用显式MediaMode和CpclProfile；能力与参数经校验后在同一设备队列执行，不支持时通过完成回调返回稳定错误。 完成闭包声明为 `@escaping @MainActor @Sendable`，异步在主执行器交付；可直接访问 `@MainActor` UI 状态。
 
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC12setMediaMode_7profile19timeoutMilliseconds10completionAA9RequestIDVAA0eF0O_AA11CpclProfileVs6UInt32VyAA0C6ResultVyytGYbctF`
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC12setMediaMode_7profile19timeoutMilliseconds10completionAA9RequestIDVAA0eF0O_AA11CpclProfileVs6UInt32VyAA0C6ResultVyytGYbScMYcctF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -4859,6 +4872,7 @@ profile选择本次编码协议；preparation在后台产生PreparedPrint，opti
 | 名称 | precise identifier |
 | --- | --- |
 | CpclProfile | `s:10PrinterSDK11CpclProfileV` |
+| MainActor | `s:ScM` |
 | ManagerResult | `s:10PrinterSDK13ManagerResultV` |
 | MediaMode | `s:10PrinterSDK9MediaModeO` |
 | RequestID | `s:10PrinterSDK9RequestIDV` |
@@ -5616,7 +5630,7 @@ let widthDots: UInt32
 struct ReceiptProfile
 ```
 
-由应用逐次提供给 Manager，不在连接时保存。硬件最大页长和切刀支持未知，不以纸宽推断打印点宽。整单长度预算由 PreparedPrint 的 ReceiptJobOptions 显式提供。构造不进行连接、IO 或硬件认证。
+由应用明确提供，硬件最大页长和切刀能力仍未知；不以小票毫米宽度推断打印点宽。整单长度预算在 `submitReceiptGray8(maxTotalLengthDots:)` 中独立提供。构造不进行连接、IO 或硬件认证。 可作为本次操作参数传入，不需要在连接时提供，也不会改变连接或其他操作。
 
 文档 ID：`apple:symbol:s:10PrinterSDK14ReceiptProfileV`
 
@@ -6094,7 +6108,7 @@ let step: UInt32
 struct StatusQueryConfiguration
 ```
 
-与打印几何、纸宽和 DPI 独立，接纳时复制，不改变连接默认值。CPCL/ESC_POS 当前未验证状态指令，因此查询同步返回 1004 UNSUPPORTED_OPERATION 且零打印机 IO；硬件仍未知。
+与打印几何、纸宽和 DPI 独立，接纳时复制，不改变连接默认值。通过参数和生命周期校验后，标准 CPCL/ESC/POS 后端因不支持状态查询而拒绝时，`queryStatus` 通过主线程完成回调异步返回 1004 UNSUPPORTED_OPERATION，不执行打印机 IO。未连接、已关闭或参数非法等情况仍返回相应校验错误；硬件状态仍未知。
 
 文档 ID：`apple:symbol:s:10PrinterSDK24StatusQueryConfigurationV`
 
@@ -6599,21 +6613,21 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:10PrinterSDK0A7FeatureO6statusyA2CmF` | `s:10PrinterSDK0A7FeatureO` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7FeatureO7receiptyA2CmF` | `s:10PrinterSDK0A7FeatureO` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7FeatureO8rawValueACSgs6UInt32V_tcfc` | `s:10PrinterSDK0A7FeatureO` | `{"sourceOrigin":{"displayName":"RawRepresentable.init(rawValue:)","identifier":"s:SY8rawValuexSg03RawB0Qz_tcfc"}}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC10disconnect10completionAA9RequestIDVyAA0C6ResultVyytGYbc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC11queryStatus13configuration19timeoutMilliseconds10completionAA9RequestIDVAA0E18QueryConfigurationV_s6UInt32VyAA0C6ResultVyAA0eO0VGYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC12capabilities10completionAA9RequestIDVyAA0C6ResultVyAA0A12CapabilitiesVGYbc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC12setMediaMode_7profile19timeoutMilliseconds10completionAA9RequestIDVAA0eF0O_AA11CpclProfileVs6UInt32VyAA0C6ResultVyytGYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC13bondedDevices10completionAA9RequestIDVyAA0C6ResultVySayAA010DiscoveredA0VGGYbc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC15feedToNextLabel7profile19timeoutMilliseconds10completionAA9RequestIDVAA11CpclProfileV_s6UInt32VyAA0C6ResultVyytGYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC5close10completionAA9RequestIDVyAA0C6ResultVyytGYbc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC5print7profile7options11preparation10completionAA9RequestIDVAA11CpclProfileV_AA12PrintOptionsVAA08PreparedM0VAA19CancellationContextCYbKcyAA0C6ResultVyytGYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC5print7profile7options11preparation10completionAA9RequestIDVAA14ReceiptProfileV_AA12PrintOptionsVAA08PreparedM0VAA19CancellationContextCYbKcyAA0C6ResultVyytGYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC10disconnect10completionAA9RequestIDVyAA0C6ResultVyytGYbScMYcc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC11queryStatus13configuration19timeoutMilliseconds10completionAA9RequestIDVAA0E18QueryConfigurationV_s6UInt32VyAA0C6ResultVyAA0eO0VGYbScMYcctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC12capabilities10completionAA9RequestIDVyAA0C6ResultVyAA0A12CapabilitiesVGYbScMYcc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC12setMediaMode_7profile19timeoutMilliseconds10completionAA9RequestIDVAA0eF0O_AA11CpclProfileVs6UInt32VyAA0C6ResultVyytGYbScMYcctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC13bondedDevices10completionAA9RequestIDVyAA0C6ResultVySayAA010DiscoveredA0VGGYbScMYcc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC15feedToNextLabel7profile19timeoutMilliseconds10completionAA9RequestIDVAA11CpclProfileV_s6UInt32VyAA0C6ResultVyytGYbScMYcctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC5close10completionAA9RequestIDVyAA0C6ResultVyytGYbScMYcc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC5print7profile7options11preparation10completionAA9RequestIDVAA11CpclProfileV_AA12PrintOptionsVAA08PreparedM0VAA19CancellationContextCYbKcyAA0C6ResultVyytGYbScMYcctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC5print7profile7options11preparation10completionAA9RequestIDVAA14ReceiptProfileV_AA12PrintOptionsVAA08PreparedM0VAA19CancellationContextCYbKcyAA0C6ResultVyytGYbScMYcctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7ManagerC6cancelyyAA9RequestIDVF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC7connect13bleIdentifier7options19timeoutMilliseconds10completion14onDisconnectedAA9RequestIDV10Foundation4UUIDV_AA10BLEOptionsVs6UInt32VyAA0C6ResultVyytGYbcyAUYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC7scanBLE7seconds7service10completionAA9RequestIDVSd_10Foundation4UUIDVSgyAA0C6ResultVySayAA010DiscoveredA0VGGYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC7sdkInfo10completionAA9RequestIDVyAA0C6ResultVyAA7SDKInfoVGYbc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC7sendRaw_6copies19timeoutMilliseconds10completionAA9RequestIDV10Foundation4DataV_s6UInt32VANyAA0C6ResultVyytGYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC8setMedia_7profile19timeoutMilliseconds10completionAA9RequestIDVAA0E8SettingsV_AA11CpclProfileVs6UInt32VyAA0C6ResultVyytGYbctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC7connect13bleIdentifier7options19timeoutMilliseconds10completion14onDisconnectedAA9RequestIDV10Foundation4UUIDV_AA10BLEOptionsVs6UInt32VyAA0C6ResultVyytGYbScMYccyAUYbScMYcctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC7scanBLE7seconds7service10completionAA9RequestIDVSd_10Foundation4UUIDVSgyAA0C6ResultVySayAA010DiscoveredA0VGGYbScMYcctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC7sdkInfo10completionAA9RequestIDVyAA0C6ResultVyAA7SDKInfoVGYbScMYcc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC7sendRaw_6copies19timeoutMilliseconds10completionAA9RequestIDV10Foundation4DataV_s6UInt32VANyAA0C6ResultVyytGYbScMYcctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC8setMedia_7profile19timeoutMilliseconds10completionAA9RequestIDVAA0E8SettingsV_AA11CpclProfileVs6UInt32VyAA0C6ResultVyytGYbScMYcctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7ManagerCACycfc` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A8GeometryV15minCutBlankDotss6UInt32VSgvp` | `s:10PrinterSDK0A8GeometryV` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A8GeometryV17maxPageLengthDotss6UInt32VSgvp` | `s:10PrinterSDK0A8GeometryV` | `{}` |

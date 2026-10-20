@@ -1,6 +1,6 @@
 # 迁移到 Manager
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.4`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.5`
 
 当前移动 API 以 `PrinterManager` 作为唯一控制入口。这是 Java/Swift API 的不兼容迁移，
 C ABI 仍为 native `0.3.0` / ABI `3/r2`；既有 r1/r2 C 消费者不会因移动类型隐藏而失去导出入口。

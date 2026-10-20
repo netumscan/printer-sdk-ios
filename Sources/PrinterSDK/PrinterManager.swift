@@ -10,7 +10,7 @@ struct ManagerAdmissionHooks: Sendable {
     var beforeFailureResolution: @Sendable () -> Void = {}
 }
 
-/// Owns one connection at a time. Every completion is asynchronous on the main queue.
+/// Owns one connection at a time. Every completion is MainActor-isolated and asynchronous on the main queue.
 /// Preparation/admission are background work; all printer IO stays in DeviceIoExecutor.
 public final class PrinterManager: Sendable {
     private let state: ManagerState
@@ -24,13 +24,13 @@ public final class PrinterManager: Sendable {
     }
     @discardableResult public func connect(bleIdentifier: UUID, options: BLEOptions,
         timeoutMilliseconds: UInt32 = 5000,
-        completion: @escaping @Sendable (ManagerResult<Void>) -> Void,
-        onDisconnected: @escaping @Sendable (ManagerResult<Void>) -> Void = { _ in }) -> RequestID {
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void,
+        onDisconnected: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void = { _ in }) -> RequestID {
         state.connect(bleIdentifier, options, timeout: timeoutMilliseconds, completion: completion, disconnected: onDisconnected)
     }
     @discardableResult public func print(profile: CpclProfile, options: PrintOptions = PrintOptions(),
         preparation: @escaping @Sendable (CancellationContext) throws -> PreparedPrint,
-        completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
         state.enqueue(timeout: options.timeoutMilliseconds, completion: completion) { device, context, remaining in
             let job = try preparation(context).native(context)
             try context.checkCancellation()
@@ -39,7 +39,7 @@ public final class PrinterManager: Sendable {
     }
     @discardableResult public func print(profile: ReceiptProfile, options: PrintOptions = PrintOptions(),
         preparation: @escaping @Sendable (CancellationContext) throws -> PreparedPrint,
-        completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
         state.enqueue(timeout: options.timeoutMilliseconds, completion: completion) { device, context, remaining in
             let job = try preparation(context).native(context)
             try context.checkCancellation()
@@ -47,7 +47,7 @@ public final class PrinterManager: Sendable {
         }
     }
     @discardableResult public func sendRaw(_ bytes: Data, copies: UInt32 = 1, timeoutMilliseconds: UInt32 = 120000,
-        completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
         guard !bytes.isEmpty, (1...100).contains(copies), timeoutMilliseconds > 0 else {
             return state.reject(1001, completion: completion)
         }
@@ -59,47 +59,47 @@ public final class PrinterManager: Sendable {
         }
     }
     @discardableResult public func setMediaMode(_ mode: MediaMode, profile: CpclProfile,
-        timeoutMilliseconds: UInt32 = 120000, completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        timeoutMilliseconds: UInt32 = 120000, completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
         state.enqueue(timeout: timeoutMilliseconds, completion: completion) { device, _, remaining in
             try device.setMediaMode(mode, profile: profile, timeoutMilliseconds: remaining())
         }
     }
     @discardableResult public func setMedia(_ settings: MediaSettings, profile: CpclProfile,
-        timeoutMilliseconds: UInt32 = 120000, completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        timeoutMilliseconds: UInt32 = 120000, completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
         state.enqueue(timeout: timeoutMilliseconds, completion: completion) { device, _, remaining in
             try device.setMedia(settings, profile: profile, timeoutMilliseconds: remaining())
         }
     }
     @discardableResult public func feedToNextLabel(profile: CpclProfile, timeoutMilliseconds: UInt32 = 120000,
-        completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
         state.enqueue(timeout: timeoutMilliseconds, completion: completion) { device, _, remaining in
             try device.feedToNextLabel(profile: profile, timeoutMilliseconds: remaining())
         }
     }
     @discardableResult public func queryStatus(configuration: StatusQueryConfiguration, timeoutMilliseconds: UInt32 = 5000,
-        completion: @escaping @Sendable (ManagerResult<StatusResult>) -> Void) -> RequestID {
+        completion: @escaping @MainActor @Sendable (ManagerResult<StatusResult>) -> Void) -> RequestID {
         state.enqueueStatus(configuration, timeout: timeoutMilliseconds, completion: completion)
     }
     @discardableResult public func capabilities(
-        completion: @escaping @Sendable (ManagerResult<PrinterCapabilities>) -> Void) -> RequestID {
+        completion: @escaping @MainActor @Sendable (ManagerResult<PrinterCapabilities>) -> Void) -> RequestID {
         state.capabilities(completion)
     }
     @discardableResult public func sdkInfo(
-        completion: @escaping @Sendable (ManagerResult<SDKInfo>) -> Void) -> RequestID { state.sdkInfo(completion) }
+        completion: @escaping @MainActor @Sendable (ManagerResult<SDKInfo>) -> Void) -> RequestID { state.sdkInfo(completion) }
     @discardableResult public func scanBLE(seconds: TimeInterval = 10, service: UUID? = nil,
-        completion: @escaping @Sendable (ManagerResult<[DiscoveredPrinter]>) -> Void) -> RequestID {
+        completion: @escaping @MainActor @Sendable (ManagerResult<[DiscoveredPrinter]>) -> Void) -> RequestID {
         state.scan(seconds: seconds, service: service, completion: completion)
     }
-    /// Classic Bluetooth bonded-device enumeration is unavailable on iOS.
+    /// System bonded-device enumeration is unavailable on iOS.
     @discardableResult public func bondedDevices(
-        completion: @escaping @Sendable (ManagerResult<[DiscoveredPrinter]>) -> Void) -> RequestID {
+        completion: @escaping @MainActor @Sendable (ManagerResult<[DiscoveredPrinter]>) -> Void) -> RequestID {
         state.bondedDevices(completion)
     }
     public func cancel(_ requestID: RequestID) { state.cancel(requestID) }
-    @discardableResult public func disconnect(completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+    @discardableResult public func disconnect(completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
         state.cleanup(permanent: false, completion: completion)
     }
-    @discardableResult public func close(completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+    @discardableResult public func close(completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
         state.cleanup(permanent: true, completion: completion)
     }
     deinit { state.cleanup(permanent: true, completion: { _ in }) }
@@ -160,7 +160,7 @@ private final class ManagerState: @unchecked Sendable {
     private var printer: MobilePrinter?
     private var connection: ManagerRequest?
     private var connectionObserver: ObservationSubscription?
-    private var disconnected: (@Sendable (ManagerResult<Void>) -> Void)?
+    private var disconnected: (@MainActor @Sendable (ManagerResult<Void>) -> Void)?
     private var connectionID: RequestID?
     private var scanning: ManagerRequest?
     private var linked = false
@@ -177,7 +177,7 @@ private final class ManagerState: @unchecked Sendable {
     }
     private func locked<T>(_ body: () throws -> T) rethrows -> T { lock.lock(); defer { lock.unlock() }; return try body() }
     private func request<Value: Sendable>(_ timeout: UInt32 = 120000,
-        completion: @escaping @Sendable (ManagerResult<Value>) -> Void,
+        completion: @escaping @MainActor @Sendable (ManagerResult<Value>) -> Void,
         value: @escaping @Sendable (ManagerValue?) -> Value? = { _ in nil }) -> ManagerRequest {
         next &+= 1
         let id = RequestID(owner: owner, sequence: next)
@@ -236,7 +236,7 @@ private final class ManagerState: @unchecked Sendable {
             request.timer = timer; timer.resume()
         }
     }
-    func reject<Value: Sendable>(_ code: Int32, completion: @escaping @Sendable (ManagerResult<Value>) -> Void) -> RequestID {
+    func reject<Value: Sendable>(_ code: Int32, completion: @escaping @MainActor @Sendable (ManagerResult<Value>) -> Void) -> RequestID {
         let request = locked { self.request(completion: completion) }
         finish(request, failure(code)); return request.id
     }
@@ -272,8 +272,8 @@ private final class ManagerState: @unchecked Sendable {
         return UInt32(min(UInt64(UInt32.max), max(1, (request.deadline - now) / 1_000_000)))
     }
     func connect(_ identifier: UUID, _ options: BLEOptions, timeout: UInt32,
-        completion: @escaping @Sendable (ManagerResult<Void>) -> Void,
-        disconnected: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void,
+        disconnected: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
         let setup: (ManagerRequest, UInt64, Int32?) = locked {
             let request = self.request(timeout, completion: completion)
             let code: Int32?
@@ -335,7 +335,7 @@ private final class ManagerState: @unchecked Sendable {
         return request.id
     }
     private func lost(_ device: MobilePrinter, version: UInt64) {
-        let event: ((@Sendable (ManagerResult<Void>) -> Void)?, RequestID?, [ManagerRequest], Int32) = locked {
+        let event: ((@MainActor @Sendable (ManagerResult<Void>) -> Void)?, RequestID?, [ManagerRequest], Int32) = locked {
             guard epoch == version, printer === device, linked, !closing else { return (nil, nil, [], 2002) }
             linked = false
             let callback = disconnected; disconnected = nil
@@ -351,19 +351,19 @@ private final class ManagerState: @unchecked Sendable {
         cleanup(permanent: false) { _ in callback(result) }
     }
     typealias Admission = ManagerAdmission
-    func enqueue(timeout: UInt32, completion: @escaping @Sendable (ManagerResult<Void>) -> Void,
+    func enqueue(timeout: UInt32, completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void,
         admission: @escaping Admission) -> RequestID {
         enqueueOperation(timeout: timeout, completion: completion, admission: admission)
     }
     func enqueueStatus(_ configuration: StatusQueryConfiguration, timeout: UInt32,
-        completion: @escaping @Sendable (ManagerResult<StatusResult>) -> Void) -> RequestID {
+        completion: @escaping @MainActor @Sendable (ManagerResult<StatusResult>) -> Void) -> RequestID {
         enqueueOperation(timeout: timeout, completion: completion,
             value: { if case .status(let value) = $0 { return value }; return nil }) { device, _, remaining in
                 try device.queryStatus(configuration: configuration, timeoutMilliseconds: remaining())
             }
     }
     private func enqueueOperation<Value: Sendable>(timeout: UInt32,
-        completion: @escaping @Sendable (ManagerResult<Value>) -> Void,
+        completion: @escaping @MainActor @Sendable (ManagerResult<Value>) -> Void,
         value: @escaping @Sendable (ManagerValue?) -> Value? = { _ in nil }, admission: @escaping Admission) -> RequestID {
         let setup: (ManagerRequest, MobilePrinter?, UInt64, Int32?) = locked {
             let request = self.request(timeout, completion: completion, value: value)
@@ -460,17 +460,17 @@ private final class ManagerState: @unchecked Sendable {
         if let status = result.status { delivery.value = .status(StatusResult(status)) }
         finish(request, delivery)
     }
-    func capabilities(_ completion: @escaping @Sendable (ManagerResult<PrinterCapabilities>) -> Void) -> RequestID {
+    func capabilities(_ completion: @escaping @MainActor @Sendable (ManagerResult<PrinterCapabilities>) -> Void) -> RequestID {
         local(completion: completion, connected: true,
             value: { if case .capabilities(let value) = $0 { return value }; return nil }) { [self] in
                 guard let device = locked({ printer }) else { throw PrinterSDKError(1002) }
                 return .capabilities(try device.capabilities())
             }
     }
-    func sdkInfo(_ completion: @escaping @Sendable (ManagerResult<SDKInfo>) -> Void) -> RequestID {
+    func sdkInfo(_ completion: @escaping @MainActor @Sendable (ManagerResult<SDKInfo>) -> Void) -> RequestID {
         local(completion: completion, value: { if case .info(let value) = $0 { return value }; return nil }) { .info(try PrinterSDK.info()) }
     }
-    private func local<Value: Sendable>(completion: @escaping @Sendable (ManagerResult<Value>) -> Void,
+    private func local<Value: Sendable>(completion: @escaping @MainActor @Sendable (ManagerResult<Value>) -> Void,
         connected: Bool = false, value: @escaping @Sendable (ManagerValue?) -> Value?,
         work: @escaping @Sendable () throws -> ManagerValue) -> RequestID {
         let setup = locked { () -> (ManagerRequest, Int32?) in
@@ -484,11 +484,11 @@ private final class ManagerState: @unchecked Sendable {
         } }
         return setup.0.id
     }
-    func bondedDevices(_ completion: @escaping @Sendable (ManagerResult<[DiscoveredPrinter]>) -> Void) -> RequestID {
+    func bondedDevices(_ completion: @escaping @MainActor @Sendable (ManagerResult<[DiscoveredPrinter]>) -> Void) -> RequestID {
         local(completion: completion,
               value: { if case .devices(let devices) = $0 { return devices }; return nil }) { throw PrinterSDKError(1004) }
     }
-    func scan(seconds: TimeInterval, service: UUID?, completion: @escaping @Sendable (ManagerResult<[DiscoveredPrinter]>) -> Void) -> RequestID {
+    func scan(seconds: TimeInterval, service: UUID?, completion: @escaping @MainActor @Sendable (ManagerResult<[DiscoveredPrinter]>) -> Void) -> RequestID {
         let setup = locked { () -> (ManagerRequest, Int32?) in
             let request = self.request(completion: completion,
                 value: { if case .devices(let devices) = $0 { return devices }; return nil })
@@ -511,7 +511,7 @@ private final class ManagerState: @unchecked Sendable {
         return setup.0.id
     }
     @discardableResult func cleanup(permanent: Bool,
-        completion: @escaping @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
         let setup: (ManagerRequest, Bool, MobilePrinter?, [ManagerRequest]) = locked {
             let cleanup = request(completion: completion)
             if permanent { permanentlyClosed = true }

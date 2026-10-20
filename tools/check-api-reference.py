@@ -17,7 +17,10 @@ APPROVED_BASELINES = {
     "android": "8ad69087e4a965f7df4aa56f84b33dc6cfcf340ed3e8395f57155dfe449390a2",
     "apple": "62ccd5c542c02285429d8942b7eb69a68555180ddb3b9d335780e30009f2fd65",
 }
-DEVELOPMENT_BASELINES = {"0.3.0-preview.4-dev": {
+DEVELOPMENT_BASELINES = {"0.3.0-preview.5-dev": {
+    "android": "cdee503bff25d6c1ee0b9d3f0fa488293570cf83124a382ca53e7bbc14ed686c",
+    "apple": "affaba2490e4db54029a34867b9774917b0cb07e928276742609533e9ccd9169",
+}, "0.3.0-preview.4-dev": {
     "android": "cc7d3634f25deeca19aeef6a8775eab17f40ede6837967113b386bcc33b9288e",
     "apple": "e2f8e9b815eda327ea9e573fc014a5964d73b4d834394091ced9968c1765b19b",
 }, "0.3.0-preview.3-dev": {
@@ -34,6 +37,7 @@ DEVELOPMENT_BASELINES = {"0.3.0-preview.4-dev": {
     "apple": "24046a0889ac83a9d96bac1220867005edbd2ce50684f972f30c691d8429fe42",
 }}
 DEVELOPMENT_IDENTITIES = {
+    "0.3.0-preview.5-dev": {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 2}},
     "0.3.0-preview.4-dev": {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 2}},
     "0.3.0-preview.3-dev": {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 2}},
     "0.3.0-preview.2-dev": {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 1}},
@@ -49,12 +53,17 @@ CANDIDATE_BASELINES = {"0.3.0-preview.1": {
 }, "0.3.0-preview.4": {
     "android": "cc7d3634f25deeca19aeef6a8775eab17f40ede6837967113b386bcc33b9288e",
     "apple": "e2f8e9b815eda327ea9e573fc014a5964d73b4d834394091ced9968c1765b19b",
+}, "0.3.0-preview.5": {
+    "android": "cdee503bff25d6c1ee0b9d3f0fa488293570cf83124a382ca53e7bbc14ed686c",
+    "apple": "affaba2490e4db54029a34867b9774917b0cb07e928276742609533e9ccd9169",
 }}
 CANDIDATE_IDENTITIES = {"0.3.0-preview.1": {
     "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 1},
 }, "0.3.0-preview.2": {
     "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 1},
 }, "0.3.0-preview.4": {
+    "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 2},
+}, "0.3.0-preview.5": {
     "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 2},
 }}
 CANDIDATE_ANNOTATIONS = {"0.3.0-preview.1": {
@@ -66,7 +75,13 @@ CANDIDATE_ANNOTATIONS = {"0.3.0-preview.1": {
 }, "0.3.0-preview.4": {
     "android": "c36ee7f2d200a5fae92d7787db97b28481059ee824a66b6865ff9b85bf8713a4",
     "apple": "9ceb576aaad1abb327bde8afb83e87d849d7f7d3a5da44e76bcc95325875a649",
+}, "0.3.0-preview.5": {
+    "android": "036c79d5d0a7caefbffbbaff9084b0b95577bbdd28087e9f5c47f1606a67b495",
+    "apple": "3c55f436c9b3cf8acaed0fa7f68e72b1b4d46e24ea643c05f5e78694b8f28e9e",
 }}
+DOCUMENTATION_CORRECTIONS = {
+    "0.3.0-preview.4": "cf2b4e4f6a0f9c3f414ac3e1a3ba7cc1386e0596860c0a958f3e3fd7f8927a03",
+}
 PUBLISHED_VERSIONS = {"0.2.0-preview." + str(n) for n in (1, 2, 3, 4)}
 DOCUMENTS = {"android": "docs/android-java-api.md", "apple": "docs/ios-swift-api.md"}
 
@@ -111,11 +126,13 @@ def parse_baseline(platform, text):
     entries = {}
     if platform == "android":
         for record in records["type"]:
-            exact_keys(record, {"name", "declaration", "members", "enumConstants"})
+            exact_keys(record, {"name", "declaration", "members", "enumConstants"}, {"annotations"})
             if not isinstance(record["name"], str) or not record["name"] or not isinstance(record["declaration"], str):
                 raise ValueError("Invalid Java API type")
             if not isinstance(record["members"], list) or not isinstance(record["enumConstants"], list):
                 raise ValueError("Invalid Java member or enum inventory")
+            if "annotations" in record:
+                validate_java_annotations(record)
             key = "android:type:" + record["name"]
             if key in entries:
                 raise ValueError("Duplicate Java type")
@@ -168,6 +185,31 @@ def parse_baseline(platform, text):
     return records, entries
 
 
+def validate_java_annotations(record):
+    metadata = record["annotations"]
+    exact_keys(metadata, {"declaration", "members"})
+    allowed = {"androidx.annotation." + name for name in
+               ("AnyThread", "MainThread", "WorkerThread", "NonNull", "Nullable")} | {"java.lang.FunctionalInterface"}
+
+    def markers(value):
+        if (not isinstance(value, list) or any(not isinstance(name, str) or name not in allowed for name in value)
+                or value != sorted(set(value))):
+            raise ValueError("Invalid Java contract annotations")
+
+    markers(metadata["declaration"])
+    if not isinstance(metadata["members"], dict) or not set(metadata["members"]) <= set(record["members"]):
+        raise ValueError("Java annotations reference a non-public member")
+    for entry in metadata["members"].values():
+        exact_keys(entry, {"declaration", "parameters"})
+        markers(entry["declaration"])
+        if not isinstance(entry["parameters"], dict):
+            raise ValueError("Invalid Java parameter annotations")
+        for index, annotations in entry["parameters"].items():
+            if not re.fullmatch(r"0|[1-9][0-9]*", index):
+                raise ValueError("Invalid Java parameter annotation index")
+            markers(annotations)
+
+
 def member_id(owner, member):
     return "android:member:" + owner + ":" + sha256(member.encode())[:16]
 
@@ -201,8 +243,31 @@ def validate_annotations(platform, baseline_sha256, entries, annotations):
                 raise ValueError("Private path, private key marker or unresolved placeholder in API explanation: " + key)
 
 
+def validate_documentation_corrections(bundle):
+    corrections = bundle.get("documentation_corrections")
+    if "documentation_corrections" not in bundle:
+        return
+    exact_keys(corrections, {"schema", "sdk_version", "platforms"})
+    version = bundle["sdk_version"]
+    expected = DOCUMENTATION_CORRECTIONS.get(version)
+    if (expected is None or type(corrections["schema"]) is not int or corrections["schema"] != 1 or
+            corrections["sdk_version"] != version):
+        raise ValueError("Invalid API documentation correction identity")
+    raw = (json.dumps(corrections, sort_keys=True, ensure_ascii=False, indent=2) + "\n").encode()
+    if sha256(raw) != expected:
+        raise ValueError("API documentation corrections differ from reviewed SHA-256")
+    exact_keys(corrections["platforms"], {"android", "apple"})
+    for platform, entries in corrections["platforms"].items():
+        original = bundle["platforms"][platform]
+        if not isinstance(entries, dict) or not entries or not set(entries) <= set(original["annotations"]["entries"]):
+            raise ValueError("API documentation correction ID differs from compiler baseline: " + platform)
+        validate_annotations(platform, original["baseline_sha256"], entries, {
+            "schema": 1, "platform": platform, "baseline_sha256": original["baseline_sha256"], "entries": entries})
+
+
 def validate_bundle(bundle):
-    exact_keys(bundle, {"schema", "sdk_version", "native_sdk_version", "abi", "platforms"}, {"contract_status"})
+    exact_keys(bundle, {"schema", "sdk_version", "native_sdk_version", "abi", "platforms"},
+               {"contract_status", "documentation_corrections"})
     if bundle["schema"] != 1 or not isinstance(bundle["sdk_version"], str) or not re.fullmatch(
             r"\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?", bundle["sdk_version"]):
         raise ValueError("Invalid API reference schema or SDK version")
@@ -236,7 +301,14 @@ def validate_bundle(bundle):
             if sha256(annotation_bytes) != CANDIDATE_ANNOTATIONS[version][platform]:
                 raise ValueError("Candidate API annotations differ from reviewed SHA-256: " + platform)
         parsed[platform] = records
+    validate_documentation_corrections(bundle)
     return parsed
+
+
+def effective_annotations(bundle, platform):
+    # Keep the sealed annotations intact for independent history verification.
+    return {**bundle["platforms"][platform]["annotations"]["entries"],
+            **bundle.get("documentation_corrections", {}).get("platforms", {}).get(platform, {})}
 
 
 def anchor(key):
@@ -262,7 +334,9 @@ def header(bundle, platform, count):
             "**；C ABI **" + str(bundle["abi"]["version"]) + "/r" + str(bundle["abi"]["revision"]) + "**。", "",
             "本页逐项覆盖审定的编译器公共 API 基线，共 **" + str(count) + "** 个文档条目。",
             "声明、JVM descriptor、常量、枚举和编译器关系均来自基线，说明按稳定文档 ID 维护。",
-            "机器可读的完整基线与说明见 [api-reference.json](api-reference.json)；运行",
+            ("机器可读的冻结基线、原始说明和独立文案勘误见 [api-reference.json](api-reference.json)；"
+             "本页已应用 `documentation_corrections`，保持原始契约快照。运行" if "documentation_corrections" in bundle else
+             "机器可读的完整基线与说明见 [api-reference.json](api-reference.json)；运行"),
             "`python3 tools/check-api-reference.py` 可检查覆盖范围、审定 SHA-256 和本页字节一致性。", "",
             "基线 SHA-256：`" + bundle["platforms"][platform]["baseline_sha256"] + "`", "",
             "运行约束与错误处理见 [API 与生命周期](api-lifecycle.md) 和 [错误码与排障](errors-troubleshooting.md)。",
@@ -273,7 +347,7 @@ def header(bundle, platform, count):
 
 
 def render_android(bundle, records):
-    annotations = bundle["platforms"]["android"]["annotations"]["entries"]
+    annotations = effective_annotations(bundle, "android")
     types = records["type"]
     lines = header(bundle, "android", len(types) + sum(len(t["members"]) for t in types))
     lines += ["## 类型导航", ""]
@@ -287,6 +361,9 @@ def render_android(bundle, records):
         lines += [f'<a id="{anchor(key)}"></a>', "", "## " + record["name"].removeprefix("com.netumscan.printersdk.").replace("$", "."), "",
                   annotations[key]["summary"], "", "```java", record["declaration"], "```", "",
                   annotations[key]["details"].strip(), "", "文档 ID：`" + key + "`", ""]
+        metadata = record.get("annotations", {"declaration": [], "members": {}})
+        if metadata["declaration"]:
+            lines += ["编译器注解：" + "、".join("`@" + name + "`" for name in metadata["declaration"]) + "。", ""]
         if record["enumConstants"]:
             lines += ["枚举声明顺序（`ordinal()` 从 0 起；不作为持久化协议值）：", "", "| ordinal | 枚举项 |", "| --- | --- |"]
             lines += ["| " + str(index) + " | `" + name + "` |" for index, name in enumerate(record["enumConstants"])]
@@ -297,13 +374,20 @@ def render_android(bundle, records):
             entry(lines, member_id(record["name"], member), title, declaration,
                   annotations[member_id(record["name"], member)], "java")
             lines += ["JVM descriptor：`" + descriptor + "`", ""]
+            markers = metadata["members"].get(member)
+            if markers:
+                if markers["declaration"]:
+                    lines += ["编译器注解：" + "、".join("`@" + name + "`" for name in markers["declaration"]) + "。", ""]
+                for parameter, names in sorted(markers["parameters"].items(), key=lambda item: int(item[0])):
+                    lines += ["参数 " + parameter + "（从 0 起）注解：" +
+                              "、".join("`@" + name + "`" for name in names) + "。", ""]
             if record["enumConstants"] and re.search(r"\b(?:values\(\)|valueOf\(java.lang.String\))", declaration):
                 lines += ["这是 Java 编译器为枚举生成的公共方法。", ""]
     return ("\n".join(lines).rstrip() + "\n").encode()
 
 
 def render_apple(bundle, records):
-    annotations = bundle["platforms"]["apple"]["annotations"]["entries"]
+    annotations = effective_annotations(bundle, "apple")
     symbols = records["symbol"]
     groups = {}
     for symbol in symbols:
@@ -385,8 +469,9 @@ def check(root):
     if package.exists() or package.is_symlink():
         urls = re.findall(r'url:\s*"(https://github\.com/netumscan/printer-sdk-ios/releases/download/[^"\s]+)"',
                           ordinary_file(root, "Package.swift").read_text())
-        expected = "https://github.com/netumscan/printer-sdk-ios/releases/download/v" + bundle["sdk_version"] + "/PrinterSDK.xcframework.zip"
-        if urls != [expected]:
+        prefix = "https://github.com/netumscan/printer-sdk-ios/releases/download/v" + bundle["sdk_version"] + "/"
+        expected = {prefix + name for name in ("XLPrinterSDK.xcframework.zip", "PrinterSDK.xcframework.zip")}
+        if len(urls) != 1 or urls[0] not in expected:
             raise ValueError("API reference SDK version differs from Package.swift binary Release URL")
     parsed = validate_bundle(bundle)
     return {"api_reference_verified": True, "sdk_version": bundle["sdk_version"],

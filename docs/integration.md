@@ -1,6 +1,6 @@
 # Android/iOS App 接入
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.4` · native `0.3.0` · ABI `3/r2`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.5` · native `0.3.0` · ABI `3/r2`
 
 Android 最低 API 21、Java 8；iOS 最低 iOS 15。当前未发布开发版使用本地 SDK 工程或本地制品，
 不要用线上旧版本替代。只有对应版本实际发布后，才可使用精确 Maven 坐标或 SwiftPM exact version；
@@ -82,9 +82,9 @@ final class AppPrinter {
     @discardableResult
     func connect(identifier: UUID, options: BLEOptions) -> RequestID {
         manager.connect(bleIdentifier: identifier, options: options, completion: { [weak self] result in
-            Task { @MainActor [weak self] in self?.showConnection(result) }
+            self?.showConnection(result)
         }, onDisconnected: { [weak self] result in
-            Task { @MainActor [weak self] in self?.disconnected(result) }
+            self?.disconnected(result)
         })
     }
 
@@ -97,11 +97,9 @@ final class AppPrinter {
                 heightDots: height, dpi: profile.dpi, originXDots: Int32(profile.xOffsetDots),
                 form: profile.form), elements: [.image(image)])
         }, completion: { [weak self] result in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                requests.remove(result.requestID)
-                showResult(result) // dataSent is transport completion, not paper completion.
-            }
+            guard let self else { return }
+            requests.remove(result.requestID)
+            showResult(result) // dataSent is transport completion, not paper completion.
         })
         requests.insert(id)
         return id
@@ -110,10 +108,10 @@ final class AppPrinter {
     func cancel(_ id: RequestID) { manager.cancel(id) }
     func cancelPrint() { for id in requests { manager.cancel(id) } }
     func disconnect(_ completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void = { _ in }) {
-        manager.disconnect { result in Task { @MainActor in completion(result) } }
+        manager.disconnect(completion: completion)
     }
     func close(_ completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void = { _ in }) {
-        manager.close { result in Task { @MainActor in completion(result) } }
+        manager.close(completion: completion)
     }
 }
 ```

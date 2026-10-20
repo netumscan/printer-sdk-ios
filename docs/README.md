@@ -1,6 +1,6 @@
 # NETUM Printer SDK 接入指南
 
-分发身份 **0.3.0-preview.4**，原生 SDK **0.3.0**，C ABI **3/r2**。
+分发身份 **0.3.0-preview.5**，原生 SDK **0.3.0**，C ABI **3/r2**。
 当前为开发预览，移动 API 使用独立的 `PrinterManager` 管理一个设备；输入、配置和结果均为数据对象。
 开发版本不作为在线发布证明，接入时核对精确版本的契约、制品摘要及实际运行身份。
 软件验证不表示硬件已认证，`hardware_verified=false`。
