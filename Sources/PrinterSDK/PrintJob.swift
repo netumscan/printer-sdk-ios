@@ -1,17 +1,17 @@
 import CPrinterSDK
 import Foundation
 
-public enum PixelFormat: UInt32, Sendable { case gray8 = 1, rgb24 = 2, rgba32 = 3 }
-public enum ImageAlgorithm: UInt32, Sendable { case threshold = 0, floydSteinberg = 1, bayer4x4 = 2, bayer8x8 = 3 }
+enum PixelFormat: UInt32, Sendable { case gray8 = 1, rgb24 = 2, rgba32 = 3 }
+enum ImageAlgorithm: UInt32, Sendable { case threshold = 0, floydSteinberg = 1, bayer4x4 = 2, bayer8x8 = 3 }
 
 /// Immutable copied pixels and rendering options. Jobs share this native storage.
 // The native handle owns immutable copied pixels; submission/build retain that storage.
 // ARC prevents release while a Swift caller or builder snapshot is using this handle.
 final class PrinterImage: @unchecked Sendable {
     let handle: OpaquePointer
-    public let width: UInt32
-    public let height: UInt32
-    public init(pixels: Data, width: UInt32, height: UInt32, format: PixelFormat = .gray8,
+    let width: UInt32
+    let height: UInt32
+    init(pixels: Data, width: UInt32, height: UInt32, format: PixelFormat = .gray8,
                 algorithm: ImageAlgorithm = .threshold, threshold: UInt32 = 128,
                 invert: Bool = false, fitWidth: Bool = false, targetWidthDots: UInt32 = 0) throws {
         try requireCurrentABI()
@@ -31,43 +31,43 @@ final class PrinterImage: @unchecked Sendable {
     deinit { psdk_image_release(handle) }
 }
 
-public struct LabelJobOptions: Sendable {
-    public let widthDots, heightDots, dpi: UInt32
-    public let originXDots, originYDots: Int32
-    public let copies: UInt32
-    public let form: Bool
-    public init(widthDots: UInt32, heightDots: UInt32, dpi: UInt32, originXDots: Int32 = 0,
+struct LabelJobOptions: Sendable {
+    let widthDots, heightDots, dpi: UInt32
+    let originXDots, originYDots: Int32
+    let copies: UInt32
+    let form: Bool
+    init(widthDots: UInt32, heightDots: UInt32, dpi: UInt32, originXDots: Int32 = 0,
                 originYDots: Int32 = 0, copies: UInt32 = 1, form: Bool = false) {
         self.widthDots = widthDots; self.heightDots = heightDots; self.dpi = dpi
         self.originXDots = originXDots; self.originYDots = originYDots; self.copies = copies; self.form = form
     }
 }
-public struct ReceiptJobOptions: Sendable {
-    public let widthDots, maxTotalLengthDots, dpi, copies: UInt32
-    public let marginLeftDots, marginRightDots: UInt32
-    public init(widthDots: UInt32, maxTotalLengthDots: UInt32, dpi: UInt32, copies: UInt32 = 1,
+struct ReceiptJobOptions: Sendable {
+    let widthDots, maxTotalLengthDots, dpi, copies: UInt32
+    let marginLeftDots, marginRightDots: UInt32
+    init(widthDots: UInt32, maxTotalLengthDots: UInt32, dpi: UInt32, copies: UInt32 = 1,
                 marginLeftDots: UInt32 = 0, marginRightDots: UInt32 = 0) {
         self.widthDots = widthDots; self.maxTotalLengthDots = maxTotalLengthDots; self.dpi = dpi
         self.copies = copies; self.marginLeftDots = marginLeftDots; self.marginRightDots = marginRightDots
     }
 }
-public struct ReceiptFinishOptions: Sendable {
-    public let trailingBlankDots: UInt32
-    public let cut: CutMode
-    public let scope: FinishScope
-    public init(trailingBlankDots: UInt32 = 0, cut: CutMode = .none, scope: FinishScope = .eachCopy) {
+struct ReceiptFinishOptions: Sendable {
+    let trailingBlankDots: UInt32
+    let cut: CutMode
+    let scope: FinishScope
+    init(trailingBlankDots: UInt32 = 0, cut: CutMode = .none, scope: FinishScope = .eachCopy) {
         self.trailingBlankDots = trailingBlankDots; self.cut = cut; self.scope = scope
     }
 }
 
-public enum MediaVerificationPolicy: UInt32, Sendable { case allowLastSent = 1, requireReadback = 2 }
+enum MediaVerificationPolicy: UInt32, Sendable { case allowLastSent = 1, requireReadback = 2 }
 /// Explicit job admission requirement. nil fields remain unspecified.
-public struct MediaRequirement: Sendable {
-    public let tracking: MediaMode?
-    public let widthMicrometers, labelLengthMicrometers, gapLengthMicrometers, markLengthMicrometers: UInt32?
-    public let markOffsetMicrometers: Int32?
-    public let verification: MediaVerificationPolicy
-    public init(tracking: MediaMode? = nil, widthMicrometers: UInt32? = nil, labelLengthMicrometers: UInt32? = nil,
+struct MediaRequirement: Sendable {
+    let tracking: MediaMode?
+    let widthMicrometers, labelLengthMicrometers, gapLengthMicrometers, markLengthMicrometers: UInt32?
+    let markOffsetMicrometers: Int32?
+    let verification: MediaVerificationPolicy
+    init(tracking: MediaMode? = nil, widthMicrometers: UInt32? = nil, labelLengthMicrometers: UInt32? = nil,
                 gapLengthMicrometers: UInt32? = nil, markLengthMicrometers: UInt32? = nil,
                 markOffsetMicrometers: Int32? = nil, verification: MediaVerificationPolicy = .allowLastSent) {
         self.tracking = tracking; self.widthMicrometers = widthMicrometers; self.labelLengthMicrometers = labelLengthMicrometers
@@ -97,7 +97,7 @@ final class PrintJob: @unchecked Sendable {
 
     // Every mutable item/finish/media access holds lock. build() copies an owning
     // snapshot under that lock and retains its images while creating the native job.
-    public final class Builder: @unchecked Sendable {
+    final class Builder: @unchecked Sendable {
         private enum Options { case label(LabelJobOptions), receipt(ReceiptJobOptions) }
         private enum Item { case image(PrinterImage, Int32, Int32), blank(UInt32) }
         private let lock = NSLock()
@@ -105,32 +105,32 @@ final class PrintJob: @unchecked Sendable {
         private var items: [Item] = []
         private var finish = ReceiptFinishOptions()
         private var media: MediaRequirement?
-        public init(label: LabelJobOptions) { options = .label(label) }
-        public init(receipt: ReceiptJobOptions) { options = .receipt(receipt) }
-        public func addImage(_ image: PrinterImage, x: Int32 = 0, y: Int32 = 0) throws {
+        init(label: LabelJobOptions) { options = .label(label) }
+        init(receipt: ReceiptJobOptions) { options = .receipt(receipt) }
+        func addImage(_ image: PrinterImage, x: Int32 = 0, y: Int32 = 0) throws {
             lock.lock(); defer { lock.unlock() }
             guard case .label = options else { throw PrinterSDKError(1004) }
             items.append(.image(image, x, y))
         }
-        public func appendImage(_ image: PrinterImage) throws {
+        func appendImage(_ image: PrinterImage) throws {
             lock.lock(); defer { lock.unlock() }
             guard case .receipt = options else { throw PrinterSDKError(1004) }
             items.append(.image(image, 0, 0))
         }
-        public func appendBlank(dots: UInt32) throws {
+        func appendBlank(dots: UInt32) throws {
             lock.lock(); defer { lock.unlock() }
             guard case .receipt = options else { throw PrinterSDKError(1004) }
             items.append(.blank(dots))
         }
-        public func setReceiptFinish(_ value: ReceiptFinishOptions) throws {
+        func setReceiptFinish(_ value: ReceiptFinishOptions) throws {
             lock.lock(); defer { lock.unlock() }
             guard case .receipt = options else { throw PrinterSDKError(1004) }
             finish = value
         }
-        public func setMediaRequirement(_ value: MediaRequirement?) {
+        func setMediaRequirement(_ value: MediaRequirement?) {
             lock.lock(); media = value; lock.unlock()
         }
-        public func build() throws -> PrintJob {
+        func build() throws -> PrintJob {
             try requireCurrentABI()
             lock.lock(); let items = items, options = options, finish = finish, media = media; lock.unlock()
             // SDK job metadata admission policy, independent of printer capabilities.

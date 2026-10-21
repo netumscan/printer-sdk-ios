@@ -1,6 +1,6 @@
 # 错误码与排障
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.5`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.10`
 
 Manager 的参数、状态、准备、准入和执行失败统一通过异步完成回调报告。
 先检查 `ManagerResult.outcome` 和稳定 `code`，再读取辅助 `message`、完成证据与
@@ -30,12 +30,12 @@ operation 快照或资源快照来决定任务结果，避免另一请求的状�
 
 两端 Raw 入口按以下顺序拒绝，多个条件同时失败时取最先命中的一项：
 
-1. 空数据（Android 包括 null）、copies 不在 1..100 或 timeout 不大于零：1001。
+1. 空数据（Android 包括 null）：1001。
 2. 数据超过 1MiB（1,048,576 字节）：1008；恰好等于上限允许继续检查。
 3. Manager 未连接、正在清理或已永久关闭：1002。
 4. Manager 已有 64 个未结束业务请求：1008。
 
-例如已关闭后传 copies=0 仍返回1001。入口拒绝异步交付一次主线程结果，completion=NONE、
+公开Raw固定一份；例如已关闭后传空数据仍返回1001。入口拒绝异步交付一次主线程结果，completion=NONE、
 outputMayHaveOccurred=false，不执行打印机 IO。前置检查不预留容量，最终入队仍原子复检；
 native 接纳还可能因自己的预算或分配失败拒绝。此顺序不改变 C SDK 的独立校验规则。
 

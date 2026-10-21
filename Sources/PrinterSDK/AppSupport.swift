@@ -28,20 +28,20 @@ struct ResourceSnapshot: Equatable, Sendable {
     public let outstandingOperations: UInt32
     public let maxCopies: UInt32
 }
-public enum PrinterConstraint: UInt32, Sendable {
+enum PrinterConstraint: UInt32, Sendable {
     case copies = 1, mediaGapMicrometers = 2, jobImageBytes = 3, pendingPayloadBytes = 4
 }
-public struct ScalarConstraint: Equatable, Sendable {
+struct ScalarConstraint: Equatable, Sendable {
     public let parameter: PrinterConstraint
     public let isKnown: Bool
     public let minimum: Int32
     public let maximum: Int32
     public let step: UInt32
-    public let evidence: UInt32
+    let evidence: UInt32
 }
-public enum PrinterProtocol: UInt32, Sendable { case cpcl = 1, escpos = 2 }
+enum PrinterProtocol: UInt32, Sendable { case cpcl = 1, escpos = 2 }
 /// Independent of print geometry. Read support alone does not prove hardware status support.
-public struct StatusQueryConfiguration: Equatable, Sendable {
+struct StatusQueryConfiguration: Equatable, Sendable {
     public let printerProtocol: PrinterProtocol
     public let queryTimeoutMilliseconds: UInt32
     public init(printerProtocol: PrinterProtocol, queryTimeoutMilliseconds: UInt32 = 5000) throws {
@@ -54,24 +54,33 @@ struct HardwareStatusResult: Equatable, Sendable {
     public let activeConditions: UInt32
     public let sampledMonotonicMilliseconds: UInt64
     public let connectionGeneration: UInt64
-    public let evidence: UInt32
+    let evidence: UInt32
 }
 /// Identity reported by the linked native library. Unknown build IDs remain nil.
 public struct SDKInfo: Equatable, Sendable {
     public let nativeVersion: String
     public let distributionVersion: String
     public let buildID: String?
-    public let abiVersion: UInt32
-    public let abiRevision: UInt32
+    let abiVersion: UInt32
+    let abiRevision: UInt32
 }
-public struct PrinterGeometry: Equatable, Sendable {
+struct PrinterGeometry: Equatable, Sendable {
     public let dpiX, dpiY, printableWidthDots, maxPageLengthDots, minCutBlankDots: UInt32?
-    public let evidence: UInt32
+    let evidence: UInt32
 }
 public struct PrinterCapabilities: Sendable {
-    public let features: [PrinterFeature: FeatureSupport]
-    public let constraints: [PrinterConstraint: ScalarConstraint]
-    public let geometry: PrinterGeometry
+    let features: [PrinterFeature: FeatureSupport]
+    let constraints: [PrinterConstraint: ScalarConstraint]
+    let geometry: PrinterGeometry
+    public var imagePrinting: Support { features[.image]?.support ?? .unknown }
+    public var paperTypeSelection: Support { features[.media]?.support ?? .unknown }
+    public var labelPositioning: Support { features[.feedToNextLabel]?.support ?? .unknown }
+    public var statusQuery: Support { features[.status]?.support ?? .unknown }
+    public var rawCommands: Support { features[.raw]?.support ?? .unknown }
+    public var maxPrintWidthMm: Double? { physicalWidthMm }
+    public var maxPageHeightMm: Double? { physicalHeightMm }
+    var physicalWidthMm: Double? = nil
+    var physicalHeightMm: Double? = nil
 }
 /// One immutable terminal result; the hardware response is nil unless the SDK verified one.
 struct OperationResult: Equatable, Sendable {

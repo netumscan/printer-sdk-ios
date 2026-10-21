@@ -1,10 +1,16 @@
 import Foundation
+#if canImport(UIKit)
+import UIKit
+#endif
 
 // Instance-scoped deterministic lifecycle gates for internal regression tests.
 // Hooks run outside Manager locks; public clients never receive these controls.
 struct ManagerConnectHooks: Sendable {
     var beforeFactory: @Sendable () -> Void = {}
     var afterPublication: @Sendable () -> Void = {}
+}
+struct ManagerImageHooks: Sendable {
+    var beforeDecode: @Sendable () -> Void = {}
 }
 struct ManagerAdmissionHooks: Sendable {
     var beforeFailureResolution: @Sendable () -> Void = {}
@@ -18,17 +24,93 @@ public final class PrinterManager: Sendable {
     init(makePrinter: @escaping @Sendable (UUID, BLEOptions) throws -> MobilePrinter,
          makeScanner: @escaping @Sendable () -> BLEScanner = { BLEScanner() },
          connectHooks: ManagerConnectHooks = ManagerConnectHooks(),
-         admissionHooks: ManagerAdmissionHooks = ManagerAdmissionHooks()) {
+         admissionHooks: ManagerAdmissionHooks = ManagerAdmissionHooks(),
+         imageHooks: ManagerImageHooks = ManagerImageHooks()) {
         state = ManagerState(makePrinter: makePrinter, makeScanner: makeScanner,
-                             connectHooks: connectHooks, admissionHooks: admissionHooks)
+                             connectHooks: connectHooks, admissionHooks: admissionHooks, imageHooks: imageHooks)
     }
-    @discardableResult public func connect(bleIdentifier: UUID, options: BLEOptions,
+    /// The original discovery name recommends a built-in model. Renamed devices require the explicit overload.
+    @discardableResult public func connectBle(device: DiscoveredPrinter,
+        completion: @escaping @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void,
+        onDisconnected: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void = { _ in }) -> RequestID {
+        connectBle(device: device, model: PrinterModel.resolve(device.name), nameRecommendation: true, completion: completion, onDisconnected: onDisconnected)
+    }
+    @discardableResult public func connectBle(device: DiscoveredPrinter, model: PrinterModel,
+        completion: @escaping @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void,
+        onDisconnected: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void = { _ in }) -> RequestID {
+        connectBle(device: device, model: Optional(model), completion: completion, onDisconnected: onDisconnected)
+    }
+    private func connectBle(device: DiscoveredPrinter, model: PrinterModel?, nameRecommendation: Bool = false,
+        completion: @escaping @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void,
+        onDisconnected: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        guard let model, let ble = try? model.bleOptions() else { return state.reject(1004, completion: completion) }
+        return state.connect(device.identifier, ble, timeout: 10000, deviceName: device.name, explicitModel: nameRecommendation ? nil : model,
+            completion: completion, disconnected: onDisconnected,
+            value: { if case .connection(let info) = $0 { return info }; return nil })
+    }
+    @discardableResult public func setPrinterModel(_ model: PrinterModel,
+        completion: @escaping @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void) -> RequestID {
+        do { return state.configurePrintProfile(try model.profile(), completion: completion) }
+        catch { return state.reject(1001, completion: completion) }
+    }
+    @discardableResult public func setPaperType(_ type: PaperType,
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        state.setMedia(MediaSettings(tracking: type.tracking), timeout: 120000, completion: completion)
+    }
+    /// Accepts one complete PNG/JPEG image. Raw RGBA and multi-frame images are rejected.
+    @discardableResult public func printEncodedImage(_ bytes: Data, widthMm: Double, heightMm: Double,
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        state.printEncodedImage(bytes, widthMm: widthMm, heightMm: heightMm, completion: completion)
+    }
+    #if canImport(UIKit)
+    /// Takes an owned pixel snapshot. CGImage-backed, non-animated UIImages are supported.
+    @discardableResult public func printImage(_ image: UIImage, widthMm: Double, heightMm: Double,
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        state.printImage(image, widthMm: widthMm, heightMm: heightMm, completion: completion)
+    }
+    #endif
+    @discardableResult public func queryStatus(
+        completion: @escaping @MainActor @Sendable (ManagerResult<StatusResult>) -> Void) -> RequestID {
+        state.queryStatus(completion: completion)
+    }
+    @discardableResult public func locateNextLabel(
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        feedToNextLabel(completion: completion)
+    }
+    @discardableResult public func sendRaw(_ bytes: Data,
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        sendRaw(bytes, copies: 1, timeoutMilliseconds: 120000, completion: completion)
+    }
+    @discardableResult public func scanBLE(
+        completion: @escaping @MainActor @Sendable (ManagerResult<[DiscoveredPrinter]>) -> Void) -> RequestID {
+        state.scan(seconds: 10, service: nil, completion: completion)
+    }
+    @discardableResult func connect(bleIdentifier: UUID, options: BLEOptions,
         timeoutMilliseconds: UInt32 = 5000,
         completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void,
         onDisconnected: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void = { _ in }) -> RequestID {
         state.connect(bleIdentifier, options, timeout: timeoutMilliseconds, completion: completion, disconnected: onDisconnected)
     }
-    @discardableResult public func print(profile: CpclProfile, options: PrintOptions = PrintOptions(),
+    /// Connects using transport parameters and adopts a printing recommendation from the original name.
+    @discardableResult func connect(options: ConnectionOptions, timeoutMilliseconds: UInt32 = 5000,
+        completion: @escaping @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void,
+        onDisconnected: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void = { _ in }) -> RequestID {
+        guard let ble = options.bleOptions else { return state.reject(1001, completion: completion) }
+        return state.connect(options.bleIdentifier, ble, timeout: timeoutMilliseconds,
+            deviceName: options.deviceName, completion: completion, disconnected: onDisconnected,
+            value: { if case .connection(let info) = $0 { return info }; return nil })
+    }
+    /// Updates local configuration only while all device business requests are idle.
+    @discardableResult func configurePrintProfile(_ profile: PrinterProfile,
+        completion: @escaping @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void) -> RequestID {
+        state.configurePrintProfile(profile, completion: completion)
+    }
+    /// Captures the connected profile before asynchronous preparation. No per-request profile override.
+    @discardableResult func print(options: PrintOptions,
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        state.print(options, completion: completion)
+    }
+    @discardableResult func print(profile: CpclProfile, options: PrintOptions = PrintOptions(),
         preparation: @escaping @Sendable (CancellationContext) throws -> PreparedPrint,
         completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
         state.enqueue(timeout: options.timeoutMilliseconds, completion: completion) { device, context, remaining in
@@ -37,7 +119,7 @@ public final class PrinterManager: Sendable {
             return try device.submit(job, profile: profile, timeoutMilliseconds: remaining())
         }
     }
-    @discardableResult public func print(profile: ReceiptProfile, options: PrintOptions = PrintOptions(),
+    @discardableResult func print(profile: ReceiptProfile, options: PrintOptions = PrintOptions(),
         preparation: @escaping @Sendable (CancellationContext) throws -> PreparedPrint,
         completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
         state.enqueue(timeout: options.timeoutMilliseconds, completion: completion) { device, context, remaining in
@@ -46,7 +128,7 @@ public final class PrinterManager: Sendable {
             return try device.submit(job, profile: profile, timeoutMilliseconds: remaining())
         }
     }
-    @discardableResult public func sendRaw(_ bytes: Data, copies: UInt32 = 1, timeoutMilliseconds: UInt32 = 120000,
+    @discardableResult func sendRaw(_ bytes: Data, copies: UInt32 = 1, timeoutMilliseconds: UInt32 = 120000,
         completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
         guard !bytes.isEmpty, (1...100).contains(copies), timeoutMilliseconds > 0 else {
             return state.reject(1001, completion: completion)
@@ -54,29 +136,50 @@ public final class PrinterManager: Sendable {
         guard bytes.count <= 1024 * 1024 else { return state.reject(1008, completion: completion) }
         // A bounded snapshot fixes caller ownership before this method returns.
         let snapshot = bytes.withUnsafeBytes { Data(bytes: $0.baseAddress!, count: $0.count) }
-        return state.enqueue(timeout: timeoutMilliseconds, completion: completion) { device, _, remaining in
-            try device.submitRaw(snapshot, copies: copies, timeoutMilliseconds: remaining())
+        return state.enqueue(timeout: timeoutMilliseconds, completion: completion) { [state] device, _, remaining in
+            let timeout = try remaining()
+            state.invalidateMediaBinding()
+            return try device.submitRaw(snapshot, copies: copies, timeoutMilliseconds: timeout)
         }
     }
-    @discardableResult public func setMediaMode(_ mode: MediaMode, profile: CpclProfile,
+    @discardableResult func setMediaMode(_ mode: MediaMode, profile: CpclProfile,
         timeoutMilliseconds: UInt32 = 120000, completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
-        state.enqueue(timeout: timeoutMilliseconds, completion: completion) { device, _, remaining in
-            try device.setMediaMode(mode, profile: profile, timeoutMilliseconds: remaining())
+        state.enqueue(timeout: timeoutMilliseconds, completion: completion) { [state] device, _, remaining in
+            let timeout = try remaining()
+            state.invalidateMediaBinding()
+            return try device.setMediaMode(mode, profile: profile, timeoutMilliseconds: timeout)
         }
     }
-    @discardableResult public func setMedia(_ settings: MediaSettings, profile: CpclProfile,
+    @discardableResult func setMedia(_ settings: MediaSettings, profile: CpclProfile,
         timeoutMilliseconds: UInt32 = 120000, completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
-        state.enqueue(timeout: timeoutMilliseconds, completion: completion) { device, _, remaining in
-            try device.setMedia(settings, profile: profile, timeoutMilliseconds: remaining())
+        state.enqueue(timeout: timeoutMilliseconds, completion: completion) { [state] device, _, remaining in
+            let timeout = try remaining()
+            state.invalidateMediaBinding()
+            return try device.setMedia(settings, profile: profile, timeoutMilliseconds: timeout)
         }
     }
-    @discardableResult public func feedToNextLabel(profile: CpclProfile, timeoutMilliseconds: UInt32 = 120000,
+    @discardableResult func setMediaMode(_ mode: MediaMode, timeoutMilliseconds: UInt32 = 120000,
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        state.setMedia(MediaSettings(tracking: mode), timeout: timeoutMilliseconds, completion: completion)
+    }
+    @discardableResult func setMedia(_ settings: MediaSettings, timeoutMilliseconds: UInt32 = 120000,
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        state.setMedia(settings, timeout: timeoutMilliseconds, completion: completion)
+    }
+    @discardableResult func feedToNextLabel(timeoutMilliseconds: UInt32 = 120000,
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        state.enqueueConfigured(timeout: timeoutMilliseconds, completion: completion) { device, profile, _, remaining in
+            guard profile.printerProtocol == .cpcl else { throw PrinterSDKError(1004) }
+            return try device.feedToNextLabel(profile: profile.cpcl(maxPageHeightDots: 65535), timeoutMilliseconds: remaining())
+        }
+    }
+    @discardableResult func feedToNextLabel(profile: CpclProfile, timeoutMilliseconds: UInt32 = 120000,
         completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
         state.enqueue(timeout: timeoutMilliseconds, completion: completion) { device, _, remaining in
             try device.feedToNextLabel(profile: profile, timeoutMilliseconds: remaining())
         }
     }
-    @discardableResult public func queryStatus(configuration: StatusQueryConfiguration, timeoutMilliseconds: UInt32 = 5000,
+    @discardableResult func queryStatus(configuration: StatusQueryConfiguration, timeoutMilliseconds: UInt32 = 5000,
         completion: @escaping @MainActor @Sendable (ManagerResult<StatusResult>) -> Void) -> RequestID {
         state.enqueueStatus(configuration, timeout: timeoutMilliseconds, completion: completion)
     }
@@ -86,12 +189,12 @@ public final class PrinterManager: Sendable {
     }
     @discardableResult public func sdkInfo(
         completion: @escaping @MainActor @Sendable (ManagerResult<SDKInfo>) -> Void) -> RequestID { state.sdkInfo(completion) }
-    @discardableResult public func scanBLE(seconds: TimeInterval = 10, service: UUID? = nil,
+    @discardableResult func scanBLE(seconds: TimeInterval = 10, service: UUID? = nil,
         completion: @escaping @MainActor @Sendable (ManagerResult<[DiscoveredPrinter]>) -> Void) -> RequestID {
         state.scan(seconds: seconds, service: service, completion: completion)
     }
     /// System bonded-device enumeration is unavailable on iOS.
-    @discardableResult public func bondedDevices(
+    @discardableResult func bondedDevices(
         completion: @escaping @MainActor @Sendable (ManagerResult<[DiscoveredPrinter]>) -> Void) -> RequestID {
         state.bondedDevices(completion)
     }
@@ -106,7 +209,7 @@ public final class PrinterManager: Sendable {
 }
 
 private enum ManagerValue: Sendable {
-    case capabilities(PrinterCapabilities), info(SDKInfo), status(StatusResult), devices([DiscoveredPrinter])
+    case capabilities(PrinterCapabilities), info(SDKInfo), status(StatusResult), devices([DiscoveredPrinter]), connection(ConnectionInfo)
 }
 private struct ManagerDelivery: Sendable {
     var code: Int32 = 0
@@ -131,6 +234,7 @@ private final class ManagerRequest: @unchecked Sendable {
     var business = false
     var admission: ManagerAdmission?
     var timer: DispatchSourceTimer?
+    var mediaBinding: UUID?
     init(id: RequestID, timeout: UInt32, deliver: @escaping @Sendable (ManagerDelivery) -> Void) {
         self.id = id; deadline = DispatchTime.now().uptimeNanoseconds + UInt64(timeout) * 1_000_000
         self.deliver = deliver
@@ -153,6 +257,8 @@ private final class ManagerState: @unchecked Sendable {
     private let makeScanner: @Sendable () -> BLEScanner
     private let connectHooks: ManagerConnectHooks
     private let admissionHooks: ManagerAdmissionHooks
+    private let imageHooks: ManagerImageHooks
+    private let preparationBudget = PreparationBudget()
     private var requests: [RequestID: ManagerRequest] = [:]
     private var pending: [ManagerRequest] = []
     private var coordinatorRunning = false
@@ -162,6 +268,8 @@ private final class ManagerState: @unchecked Sendable {
     private var connectionObserver: ObservationSubscription?
     private var disconnected: (@MainActor @Sendable (ManagerResult<Void>) -> Void)?
     private var connectionID: RequestID?
+    private var connectionInfo: ConnectionInfo?
+    private var mediaBinding: (id: UUID, profile: PrinterProfile)?
     private var scanning: ManagerRequest?
     private var linked = false
     private var epoch: UInt64 = 0
@@ -171,9 +279,10 @@ private final class ManagerState: @unchecked Sendable {
     init(makePrinter: @escaping @Sendable (UUID, BLEOptions) throws -> MobilePrinter,
          makeScanner: @escaping @Sendable () -> BLEScanner = { BLEScanner() },
          connectHooks: ManagerConnectHooks = ManagerConnectHooks(),
-         admissionHooks: ManagerAdmissionHooks = ManagerAdmissionHooks()) {
+         admissionHooks: ManagerAdmissionHooks = ManagerAdmissionHooks(),
+         imageHooks: ManagerImageHooks = ManagerImageHooks()) {
         self.makePrinter = makePrinter; self.makeScanner = makeScanner
-        self.connectHooks = connectHooks; self.admissionHooks = admissionHooks
+        self.connectHooks = connectHooks; self.admissionHooks = admissionHooks; self.imageHooks = imageHooks
     }
     private func locked<T>(_ body: () throws -> T) rethrows -> T { lock.lock(); defer { lock.unlock() }; return try body() }
     private func request<Value: Sendable>(_ timeout: UInt32 = 120000,
@@ -212,6 +321,9 @@ private final class ManagerState: @unchecked Sendable {
     // client code still executes asynchronously outside this lock.
     private func finishLocked(_ request: ManagerRequest, _ result: ManagerDelivery) -> ManagerAdmission? {
         guard request.phase != .ended else { return nil }
+        if result.code != 0, let binding = request.mediaBinding, mediaBinding?.id == binding {
+            mediaBinding = nil
+        }
         request.phase = .ended
         request.deliver(result)
         let preparation = request.admission; request.admission = nil
@@ -271,11 +383,13 @@ private final class ManagerState: @unchecked Sendable {
         guard request.deadline > now else { throw PrinterSDKError(2001) }
         return UInt32(min(UInt64(UInt32.max), max(1, (request.deadline - now) / 1_000_000)))
     }
-    func connect(_ identifier: UUID, _ options: BLEOptions, timeout: UInt32,
-        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void,
-        disconnected: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+    func connect<Value: Sendable>(_ identifier: UUID, _ options: BLEOptions, timeout: UInt32,
+        deviceName: String? = nil, explicitModel: PrinterModel? = nil,
+        completion: @escaping @MainActor @Sendable (ManagerResult<Value>) -> Void,
+        disconnected: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void,
+        value: @escaping @Sendable (ManagerValue?) -> Value? = { _ in nil }) -> RequestID {
         let setup: (ManagerRequest, UInt64, Int32?) = locked {
-            let request = self.request(timeout, completion: completion)
+            let request = self.request(timeout, completion: completion, value: value)
             let code: Int32?
             if timeout == 0 { code = 1001 }
             else if printer != nil || connection != nil { code = 1002 }
@@ -294,6 +408,9 @@ private final class ManagerState: @unchecked Sendable {
             connectHooks.beforeFactory()
             guard locked({ epoch == version && !closing && !permanentlyClosed && request.phase != .ended }) else { return }
             do {
+                let profile = try explicitModel?.profile() ?? PrinterProfiles.resolvePrintProfile(bluetoothName: deviceName)
+                let info = ConnectionInfo(identifier: identifier, deviceName: deviceName, printProfile: profile,
+                    configurationSource: profile == nil ? .none : explicitModel == nil ? .nameRecommendation : .explicit)
                 let device = try makePrinter(identifier, options)
                 let use = locked { () -> Bool in
                     guard epoch == version, !closing, !permanentlyClosed, request.phase != .ended else { return false }
@@ -308,15 +425,16 @@ private final class ManagerState: @unchecked Sendable {
                 let accepted = locked { () -> Bool in
                     guard epoch == version, !closing, !permanentlyClosed, request.phase != .ended else { return false }
                     linked = true; self.disconnected = disconnected; connectionID = request.id; connectionObserver = token
+                    connectionInfo = info; mediaBinding = nil
                     // Publish the successful connection and enqueue its result atomically.
                     // A competing cancel either wins before publication, or sees an ended request;
                     // a loss observer can only enqueue after this success has been committed.
-                    _ = finishLocked(request, ManagerDelivery())
+                    _ = finishLocked(request, ManagerDelivery(value: .connection(info)))
                     return true
                 }
                 guard accepted else {
                     token.cancel(); device.close()
-                    locked { if epoch == version, printer === device { printer = nil; linked = false } }
+                    locked { if epoch == version, printer === device { printer = nil; linked = false; connectionInfo = nil; mediaBinding = nil } }
                     return
                 }
                 connectHooks.afterPublication()
@@ -327,7 +445,8 @@ private final class ManagerState: @unchecked Sendable {
             } catch {
                 let old: MobilePrinter? = locked {
                     guard epoch == version, !closing else { return nil }
-                    let value = printer; printer = nil; linked = false; connection = nil; return value
+                    let value = printer; printer = nil; linked = false; connection = nil
+                    connectionInfo = nil; mediaBinding = nil; return value
                 }
                 old?.close(); finish(request, failure(request.abortCode ?? errorCode(error), error))
             }
@@ -338,6 +457,7 @@ private final class ManagerState: @unchecked Sendable {
         let event: ((@MainActor @Sendable (ManagerResult<Void>) -> Void)?, RequestID?, [ManagerRequest], Int32) = locked {
             guard epoch == version, printer === device, linked, !closing else { return (nil, nil, [], 2002) }
             linked = false
+            connectionInfo = nil; mediaBinding = nil
             let callback = disconnected; disconnected = nil
             let pending = requests.values.filter { $0.phase == .queued || $0.phase == .preparing }
             let code = (try? device.diagnostic().errorCode) ?? 2002
@@ -351,6 +471,112 @@ private final class ManagerState: @unchecked Sendable {
         cleanup(permanent: false) { _ in callback(result) }
     }
     typealias Admission = ManagerAdmission
+    func configurePrintProfile(_ profile: PrinterProfile,
+        completion: @escaping @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void) -> RequestID {
+        locked {
+            let request = self.request(completion: completion,
+                value: { if case .connection(let info) = $0 { return info }; return nil })
+            let code = accepted(request, connected: true)
+            if let code { _ = finishLocked(request, failure(code)) }
+            else if requests.values.contains(where: { $0.business }) {
+                _ = finishLocked(request, failure(1002))
+            } else if let current = connectionInfo {
+                let info = ConnectionInfo(identifier: current.identifier, deviceName: current.deviceName,
+                    printProfile: profile, configurationSource: .explicit)
+                connectionInfo = info; mediaBinding = nil
+                _ = finishLocked(request, ManagerDelivery(value: .connection(info)))
+            } else { _ = finishLocked(request, failure(1002)) }
+            return request.id
+        }
+    }
+    func invalidateMediaBinding() { locked { mediaBinding = nil } }
+    func print(_ options: PrintOptions,
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        guard options.isComplete else { return reject(1001, completion: completion) }
+        return enqueueConfigured(timeout: options.timeoutMilliseconds, completion: completion) { [self] device, profile, context, remaining in
+            let scope = try preparationBudget.acquire()
+            defer { scope.close() }
+            let prepared = try options.prepare(profile: profile, cancellation: context, budget: scope)
+            let job = try prepared.native(context)
+            try context.checkCancellation()
+            if prepared.media != nil {
+                guard locked({ mediaBinding?.profile == profile }) else { throw PrinterSDKError(1002) }
+            }
+            switch profile.printerProtocol {
+            case .cpcl:
+                return try device.submit(job, profile: profile.cpcl(maxPageHeightDots: options.maxPageHeightDots),
+                    timeoutMilliseconds: remaining())
+            case .escpos: return try device.submit(job, profile: profile.receipt(), timeoutMilliseconds: remaining())
+            }
+        }
+    }
+    func printEncodedImage(_ data: Data, widthMm: Double, heightMm: Double,
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        do {
+            guard !data.isEmpty else { throw PrinterSDKError(1001) }
+            guard data.count <= 32 * 1024 * 1024 else { throw PrinterSDKError(1008) }
+            let reservation = try preparationBudget.reserveInput(data.count)
+            let snapshot = data.withUnsafeBytes { Data(bytes: $0.baseAddress!, count: $0.count) }
+            let source = ImageSource.deferred { context in
+                defer { withExtendedLifetime(reservation) {} }
+                self.imageHooks.beforeDecode()
+                return try AppleImageDecoder.decode(snapshot, context: context)
+            }
+            return printImageSource(source, widthMm: widthMm, heightMm: heightMm, completion: completion)
+        } catch { return reject(errorCode(error), completion: completion) }
+    }
+    #if canImport(UIKit)
+    func printImage(_ image: UIImage, widthMm: Double, heightMm: Double,
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        do {
+            guard image.images == nil, let cg = image.cgImage else { throw PrinterSDKError(1001) }
+            let snapshot = try ApplePixelSnapshot(cg, orientation: image.imageOrientation, budget: preparationBudget)
+            return printImageSource(ImageSource.deferred { try snapshot.load($0) },
+                widthMm: widthMm, heightMm: heightMm, completion: completion)
+        } catch { return reject(errorCode(error), completion: completion) }
+    }
+    #endif
+    private func printImageSource(_ source: ImageSource, widthMm: Double, heightMm: Double,
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        do {
+            let options = try PrintOptions.labelMm(widthMm: widthMm, heightMm: heightMm,
+                content: [.image(source, render: try ImageRender().containBoxMm(width: widthMm, height: heightMm))])
+            return print(options, completion: completion)
+        } catch { return reject(errorCode(error), completion: completion) }
+    }
+    func queryStatus(completion: @escaping @MainActor @Sendable (ManagerResult<StatusResult>) -> Void) -> RequestID {
+        enqueueOperation(timeout: 5000, completion: completion,
+            value: { if case .status(let value) = $0 { return value }; return nil },
+            configuredAdmission: { profile in
+                { device, _, remaining in
+                    try device.queryStatus(configuration: StatusQueryConfiguration(printerProtocol: profile.printerProtocol),
+                        timeoutMilliseconds: remaining())
+                }
+            })
+    }
+    func setMedia(_ settings: MediaSettings, timeout: UInt32,
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        let binding = UUID()
+        return enqueueOperation(timeout: timeout, completion: completion, mediaBinding: binding,
+            configuredAdmission: { [self] profile in
+                { [self] device, _, remaining in
+                    guard profile.printerProtocol == .cpcl else { throw PrinterSDKError(1004) }
+                    let cpcl = try profile.cpcl(maxPageHeightDots: 65535)
+                    let operation = try device.setMedia(settings, profile: cpcl, timeoutMilliseconds: remaining())
+                    locked {
+                        if linked, connectionInfo?.printProfile == profile { mediaBinding = (binding, profile) }
+                    }
+                    return operation
+                }
+            })
+    }
+    func enqueueConfigured(timeout: UInt32,
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void,
+        admission: @escaping @Sendable (MobilePrinter, PrinterProfile, CancellationContext, @Sendable () throws -> UInt32) throws -> PrintOperation) -> RequestID {
+        enqueueOperation(timeout: timeout, completion: completion, configuredAdmission: { profile in
+            { device, context, remaining in try admission(device, profile, context, remaining) }
+        })
+    }
     func enqueue(timeout: UInt32, completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void,
         admission: @escaping Admission) -> RequestID {
         enqueueOperation(timeout: timeout, completion: completion, admission: admission)
@@ -358,20 +584,25 @@ private final class ManagerState: @unchecked Sendable {
     func enqueueStatus(_ configuration: StatusQueryConfiguration, timeout: UInt32,
         completion: @escaping @MainActor @Sendable (ManagerResult<StatusResult>) -> Void) -> RequestID {
         enqueueOperation(timeout: timeout, completion: completion,
-            value: { if case .status(let value) = $0 { return value }; return nil }) { device, _, remaining in
+            value: { if case .status(let value) = $0 { return value }; return nil }, admission: { device, _, remaining in
                 try device.queryStatus(configuration: configuration, timeoutMilliseconds: remaining())
-            }
+            })
     }
     private func enqueueOperation<Value: Sendable>(timeout: UInt32,
         completion: @escaping @MainActor @Sendable (ManagerResult<Value>) -> Void,
-        value: @escaping @Sendable (ManagerValue?) -> Value? = { _ in nil }, admission: @escaping Admission) -> RequestID {
+        value: @escaping @Sendable (ManagerValue?) -> Value? = { _ in nil }, mediaBinding: UUID? = nil,
+        configuredAdmission: (@Sendable (PrinterProfile) -> Admission)? = nil, admission: Admission? = nil) -> RequestID {
         let setup: (ManagerRequest, MobilePrinter?, UInt64, Int32?) = locked {
             let request = self.request(timeout, completion: completion, value: value)
             request.business = true
-            let code = timeout == 0 ? 1001 : accepted(request, connected: true)
+            request.mediaBinding = mediaBinding
+            var code = timeout == 0 ? 1001 : accepted(request, connected: true)
+            if code == nil && configuredAdmission != nil && connectionInfo?.printProfile == nil { code = 1002 }
             let device = printer, version = epoch
             if code == nil {
-                request.admission = admission
+                if let configuredAdmission, let profile = connectionInfo?.printProfile {
+                    request.admission = configuredAdmission(profile)
+                } else { request.admission = admission }
                 pending.append(request)
                 if !coordinatorRunning {
                     coordinatorRunning = true
@@ -464,7 +695,14 @@ private final class ManagerState: @unchecked Sendable {
         local(completion: completion, connected: true,
             value: { if case .capabilities(let value) = $0 { return value }; return nil }) { [self] in
                 guard let device = locked({ printer }) else { throw PrinterSDKError(1002) }
-                return .capabilities(try device.capabilities())
+                var result = try device.capabilities()
+                if let profile = locked({ connectionInfo?.printProfile }) {
+                    result.physicalWidthMm = Double(profile.maxPrintWidthDots) / profile.dotsPerMm
+                    if let height = result.geometry.maxPageLengthDots {
+                        result.physicalHeightMm = Double(height) / profile.dotsPerMm
+                    }
+                }
+                return .capabilities(result)
             }
     }
     func sdkInfo(_ completion: @escaping @MainActor @Sendable (ManagerResult<SDKInfo>) -> Void) -> RequestID {
@@ -518,6 +756,7 @@ private final class ManagerState: @unchecked Sendable {
             cleanupWaiters.append { cleanup.deliver(ManagerDelivery()) }
             if closing { return (cleanup, false, nil, []) }
             closing = true; epoch &+= 1; linked = false
+            connectionInfo = nil; mediaBinding = nil
             let previous = printer; printer = nil; connection = nil
             connectionObserver?.cancel(); connectionObserver = nil; disconnected = nil
             preparation = DispatchQueue(label: "PrinterSDK.Manager.prepare")

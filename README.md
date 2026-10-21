@@ -1,73 +1,63 @@
-# printer-sdk-ios
+# NETUM Printer SDK for iOS
 
-NETUM Printer SDK iOS 开发预览 **0.3.0-preview.5**：核心 SDK 0.3.0，C ABI 3/r2。
-冻结契约状态为 `candidate`；文档本身不作为在线发布或硬件认证证明。
-Framework Bundle ID 为 `com.netumscan.printersdk.core`；Swift 模块为 `PrinterSDK`，C 模块为 `CPrinterSDK`。
-ABI 3 仅包含 `printer_sdk.h`，与 ABI 2 二进制不兼容；旧版标签及历史附件保持不变。
+开发预览 **`0.3.0-preview.10`**，原生 SDK **`0.3.0`**、C ABI **`3/r2`**。
+冻结契约状态为 `candidate`；候选声明本身不证明已经签名、上传或线上发布。
+Swift 模块为 `PrinterSDK`，原生模块为 `CPrinterSDK`，Framework Bundle ID 为 `com.netumscan.printersdk.core`。
 
-[客户指南](docs/README.md) 包含权限、生命周期、操作配置、错误码、迁移和 API 清单。
-[Samples](https://github.com/netumscan/printer-sdk-samples) 提供 Quick Start、Full Demo 及共享 App 示例；
-使用时核对 SDK 版本锁，旧 ABI2 示例不能直接混用本版库。
+[客户指南](docs/README.md) 包含权限、连接、图片、回调、错误码与完整公开 API。
+本版移动 API 需要迁移和重新编译；C ABI 3/r2 保持 27 个 C 导出，不兼容 ABI 2。
+Swift 包装源码和 C 头随包提供，C++ 核心只以二进制分发。许可和第三方声明见 [LICENSE](LICENSE) 与 [LICENSE-NOTICE.md](LICENSE-NOTICE.md)。
 
-## 本地集成与候选分发
+## 集成
 
-要求 iOS 15+、Swift 5.9+。XCFramework 包含 iOS arm64 以及 iOS Simulator arm64/x86_64。
-Swift 包装源码与 C 头供集成使用，C++ 核心只以二进制分发。
-准备目录中的 `Package.swift` 记录将来的精确版本 URL 和校验和；上传前该 URL 可能不存在。
-本地独立 Consumer 验证会把 binary target 临时改为本地 XCFramework 路径，不需要远端依赖。
-
-发布经单独授权并验证后，Xcode Package Dependencies 才可选择以下仓库及 Exact Version `0.3.0-preview.5`：
+要求 iOS 15+、Swift 5.9+。XCFramework 包含设备 arm64 和 Simulator arm64/x86_64。
+实际发布后使用精确 SwiftPM 版本：
 
 ```swift
-.package(url: "https://github.com/netumscan/printer-sdk-ios", exact: "0.3.0-preview.5")
+.package(url: "https://github.com/netumscan/printer-sdk-ios", exact: "0.3.0-preview.10")
 ```
 
-候选二进制 URL：[https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.5/XLPrinterSDK.xcframework.zip](https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.5/XLPrinterSDK.xcframework.zip)。这段配置本身不是在线可用性证明。
+候选二进制 URL：[https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.10/XLPrinterSDK.xcframework.zip](https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.10/XLPrinterSDK.xcframework.zip)。准备目录的 `Package.swift` 包含此 URL 与制品校验和；上传前 URL 可能尚不可用。本地独立消费者通过本地 XCFramework 路径验证。
+[Samples](https://github.com/netumscan/printer-sdk-samples) 提供精确版本示例，集成时核对对应 SDK 锁。
 
-## App 生命周期
+## BLE连接与图片
 
-App `Info.plist` 须设置 `NSBluetoothAlwaysUsageDescription`。蓝牙 UUID、写入方式和 Profile
-由调用方依据固件及纸张验证后传入；SDK 不推断机型或 UUID。
+App `Info.plist` 配置 `NSBluetoothAlwaysUsageDescription`。每个 `PrinterManager()` 同时管理一台 BLE 设备；`scanBLE` 返回 `DiscoveredPrinter`。iOS 不提供经典蓝牙 SPP 或系统已配对列表。
+
+原设备名可推荐内置 `PrinterModel`；改名的已收录设备可以显式选型号，未知型号不得按 M90 猜测。无可匹配原名（包括只有 UUID、没有名称的目标）且未显式选择已收录型号时，连接回调报告 1004。服务、特征及流控参数由 SDK 内部管理。以下代码适用于调用方已确认属于 LT-M90 的设备：
 
 ```swift
 import Foundation
 import PrinterSDK
 
-func connect(manager: PrinterManager, identifier: UUID, options: BLEOptions) {
-    manager.connect(bleIdentifier: identifier, options: options, completion: { result in
-        print("connect:", result.code)
+func connectAndPrint(manager: PrinterManager, device: DiscoveredPrinter, pngJpeg: Data) {
+    manager.connectBle(device: device, model: .ltM90, completion: { connection in
+        guard connection.isSuccess else { return }
+        manager.printEncodedImage(pngJpeg, widthMm: 50, heightMm: 50, completion: { result in
+            print(result.code, result.completion, result.outputMayHaveOccurred)
+        })
     }, onDisconnected: { result in
         print("disconnected:", result.code)
     })
 }
-
-func submit(manager: PrinterManager, pixels: Data, profile: CpclProfile) -> RequestID {
-    manager.print(profile: profile, preparation: { cancellation in
-        try cancellation.checkCancellation()
-        return PreparedPrint(label: LabelJobOptions(widthDots: profile.widthDots,
-            heightDots: 1, dpi: profile.dpi),
-            elements: [.image(Pixels(data: pixels, width: 8, height: 1))])
-    }, completion: { result in
-        print(result.code, result.completion, result.outputMayHaveOccurred)
-    })
-}
 ```
 
-每次请求通过方法参数回调异步交付主线程，只返回纯 `RequestID`，不公开设备、operation 或订阅对象。
-取消使用 `manager.cancel(requestID)`。`manager.disconnect { result in ... }` 完成后可以显式连接另一台设备；
-结束所有权时调用 `manager.close { result in ... }`，关闭后不能复用。
-一个 Manager 同时拥有一台设备，多设备使用多个实例。页面退出只解除应用自己的 UI 通知。
+`printEncodedImage` 接收完整 PNG/JPEG `Data`，编码上限 32 MiB；大图推荐此入口，以便后台按页面目标采样。已有非动画、CGImage 支持的 `UIImage` 时直接使用 `printImage(_:widthMm:heightMm:completion:)`，其源像素 `bytesPerRow × height` 上限为 16 MiB。动画或没有 `cgImage` 的 CI-only／矢量等图片报告 1001；调用方可先渲染为 CGImage 支持的图片，或提供 PNG/JPEG Data。资源超限报告 1008。页面宽高为毫米，按已采用型号的精确点密度换算，不使用图片 DPI 或 `UIImage.scale` 决定纸面尺寸。
 
-每次打印明确传入 Profile。准备闭包在后台生成原始像素描述，原生导入复制一次，后续共享只读存储。
-同一设备所有 IO 由 SDK 队列串行执行。数据传输完成不代表物理打印完成；取消不能撤回已发数据。
-连接中断后需显式重连，不自动续打或重放。`manager.sdkInfo { result in ... }` 返回运行库身份；
-能力的实现标记不等于硬件支持，须同时检查设备支持和证据。
+两入口返回前取得稳定输入快照，复制期间调用方不得并发修改输入。解码、方向修正、透明白底和缩放在有界后台执行；固定一份、阈值 128、不反色，等比缩小并居中补白，不放大、不裁剪，不隐式 FORM、切纸或下一标签定位。文本、条码等先由 App 绘制成图片。
 
-## 隐私与许可
+`setPaperType` 独立采用 `.gapLabel`／`.blackMark`／`.continuous`，不隐式校准或持久化；`locateNextLabel` 独立定位。连接后空闲时可 `setPrinterModel`，以成功回调的 `ConnectionInfo` 为准；型号选择不是硬件认证。
 
-SDK 不包含分析、广告或遥测上传。SwiftPM 包含 `PrivacyInfo.xcprivacy`，对超时计时使用的系统启动时间
-API 声明 `35F9.1`。App 需根据自身权限、数据处理和分发方式完成隐私披露。
-见 [LICENSE](LICENSE)；允许商业应用免费集成及随应用再分发。
+## 请求与生命周期
 
-本包 `hardware_verified=false`。本地无签名构建及独立工程编译链接只能证明软件分发路径，
-不包含手机安装、蓝牙联调、固件/机型/纸张故障矩阵或真机峰值内存验收。
+异步操作立即返回 `RequestID`，完成与意外断连闭包均为 `@MainActor @Sendable`，主线程只交付一次终态。取消使用 `manager.cancel(requestID)`；`manager.disconnect { result in ... }` 清理完成后可显式重连，所有者结束时 `manager.close { result in ... }`，关闭后不能复用。不要同步等待主线程回调。
+
+所有设备 IO 共用原 FIFO，SDK 不自动重连、续打或重放。取消和失败可能已有输出；`dataSent` 仅证明数据传输完成。能力为三态，缺纸／开盖／纸将尽／切刀错误为可空布尔，未知不能解释为正常。`sdkInfo` 从实际链接的库返回版本和可选构建标识。
+
+Flutter 的 PNG/JPEG `Uint8List` 经标准 codec 转为 `FlutterStandardTypedData.data` 后直接交给编码入口，不使用 Base64 或裸 RGBA。文件授权、缓存、页面绑定和后台策略由 App／插件负责。
+
+## 隐私与验证范围
+
+SDK 不包含分析、广告或遥测上传。SwiftPM 保留 `PrivacyInfo.xcprivacy`，系统启动时间 API 声明 `35F9.1`；App 仍按自身行为完成隐私披露。
+
+`hardware_verified=false`。源码编译、制品消费者与模拟器检查不等于真实无线、纸面或手机峰值内存验收；旧在线版本报告不替代本版验证。SDK 不公开底层作业、图片准备对象、平台句柄或队列控制接口。

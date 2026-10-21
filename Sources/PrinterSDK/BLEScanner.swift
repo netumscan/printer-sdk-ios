@@ -4,9 +4,17 @@ import Foundation
 public struct DiscoveredPrinter: Sendable {
     public let identifier: UUID
     public let name: String?
-    public let advertisedServices: [String]
+    let advertisedServices: [String]
     /// The latest platform reading. CoreBluetooth uses 127 when RSSI is unavailable.
-    public let rssi: Int
+    let rssi: Int
+    public var signalStrength: Int? { rssi == 127 ? nil : rssi }
+    public init(identifier: UUID, name: String? = nil) {
+        self.init(identifier: identifier, name: name, advertisedServices: [], rssi: 127)
+    }
+    init(identifier: UUID, name: String?, advertisedServices: [String], rssi: Int) {
+        self.identifier = identifier; self.name = name
+        self.advertisedServices = advertisedServices; self.rssi = rssi
+    }
 }
 
 /// Foreground discovery only. A discovered BLE device is not a verified printer.

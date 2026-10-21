@@ -64,7 +64,12 @@ HISTORICAL_ANDROID = {"baseline_sha256": "dbbab332f2d1280ef680de940b1ccad9848b65
                       "classes_sha256": "a38917a334569a217a3a3564038b50e18dfeb2af24e390522f3c0dc25a159ac9",
                       "types": 14, "members": 101}
 MAX_OBJECT_BYTES = 2 * 1024 * 1024
-CANDIDATE_CONTRACTS = {"0.3.0-preview.1": {
+CANDIDATE_CONTRACTS = {"0.3.0-preview.10": {
+    "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 2},
+    "historical_baseline_version": "0.2.0-preview.3", "c_export_count": 27,
+    "manifest_sha256": "b2e8ddeb574b23ab7b820c140230347afa7184318bb47f358f5a12807183ea0f",
+    "c_baseline_sha256": "eda4a91156a9f8698b16ab3620a8742fee7134ed0facabfdf16c53777fc6e2b2",
+}, "0.3.0-preview.1": {
     "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 1},
     "historical_baseline_version": "0.2.0-preview.3",
     "manifest_sha256": "a0dcb7f9f95af5ad36a0f1dc18ff656d3bdb4d8ba07ae4023d95dbd18e64c0a1",
@@ -84,6 +89,11 @@ CANDIDATE_CONTRACTS = {"0.3.0-preview.1": {
     "historical_baseline_version": "0.2.0-preview.3", "c_export_count": 27,
     "manifest_sha256": "721875893368d2fa84a3d79b6a6a3e5f528b223398a5702d04ed3b75eafc4cfc",
     "c_baseline_sha256": "bd1267bf96730249f230f592b2c4dd048faccb028c85ad921c988fde3a0e3e95",
+}, "0.3.0-preview.8": {
+    "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 2},
+    "historical_baseline_version": "0.2.0-preview.3", "c_export_count": 27,
+    "manifest_sha256": "f084032ac790f0fe79d4e78b5275d8c771060755ff243ff3580d4b9e96c37c5b",
+    "c_baseline_sha256": "b89c812f62a288fa2657bc967eeb75ce727e18fe8bca52798349b9a4490576db",
 }}
 
 

@@ -22,27 +22,36 @@ public struct ManagerResult<Value: Sendable>: Sendable {
 }
 
 /// Cooperative cancellation for application preparation. No native handle is exposed.
-public final class CancellationContext: @unchecked Sendable {
+final class CancellationContext: @unchecked Sendable {
     private let lock = NSLock()
     private var cancelled = false
     init() {}
-    public var isCancelled: Bool { lock.lock(); defer { lock.unlock() }; return cancelled }
-    public func checkCancellation() throws { if isCancelled { throw PrinterSDKError(1005) } }
+    var isCancelled: Bool { lock.lock(); defer { lock.unlock() }; return cancelled }
+    func checkCancellation() throws { if isCancelled { throw PrinterSDKError(1005) } }
     func cancel() { lock.lock(); cancelled = true; lock.unlock() }
 }
 
-public struct PrintOptions: Sendable {
-    public let timeoutMilliseconds: UInt32
-    public init(timeoutMilliseconds: UInt32 = 120000) { self.timeoutMilliseconds = timeoutMilliseconds }
+struct PrintOptions: Sendable {
+    let timeoutMilliseconds: UInt32
+    let description: PrintDescription?
+    /// Timeout-only options for the compatible explicit-profile preparation entry points.
+    init(timeoutMilliseconds: UInt32 = 120000) {
+        self.timeoutMilliseconds = timeoutMilliseconds; description = nil
+    }
+    init(timeoutMilliseconds: UInt32, description: PrintDescription) {
+        self.timeoutMilliseconds = timeoutMilliseconds; self.description = description
+    }
+    var isComplete: Bool { description != nil }
+    var maxPageHeightDots: UInt32 { description?.maxPageHeightDots ?? 65535 }
 }
 
-public enum MediaPersistencePolicy: UInt32, Sendable { case volatileOnly = 0, allowPersistent = 1 }
-public struct MediaSettings: Sendable {
-    public let tracking: MediaMode?
-    public let widthMicrometers, labelLengthMicrometers, gapLengthMicrometers, markLengthMicrometers: UInt32?
-    public let markOffsetMicrometers: Int32?
-    public let persistence: MediaPersistencePolicy
-    public init(tracking: MediaMode? = nil, widthMicrometers: UInt32? = nil, labelLengthMicrometers: UInt32? = nil,
+enum MediaPersistencePolicy: UInt32, Sendable { case volatileOnly = 0, allowPersistent = 1 }
+struct MediaSettings: Sendable {
+    let tracking: MediaMode?
+    let widthMicrometers, labelLengthMicrometers, gapLengthMicrometers, markLengthMicrometers: UInt32?
+    let markOffsetMicrometers: Int32?
+    let persistence: MediaPersistencePolicy
+    init(tracking: MediaMode? = nil, widthMicrometers: UInt32? = nil, labelLengthMicrometers: UInt32? = nil,
                 gapLengthMicrometers: UInt32? = nil, markLengthMicrometers: UInt32? = nil,
                 markOffsetMicrometers: Int32? = nil, persistence: MediaPersistencePolicy = .volatileOnly) {
         self.tracking = tracking; self.widthMicrometers = widthMicrometers; self.labelLengthMicrometers = labelLengthMicrometers
@@ -64,18 +73,18 @@ public struct MediaSettings: Sendable {
 }
 
 /// Read-only raw pixels. Reuse the same value across elements to share one native import.
-/// Encoded image decoding belongs to the application preparation closure.
-public final class Pixels: Sendable {
-    public let data: Data
-    public let width: UInt32
-    public let height: UInt32
-    public let format: PixelFormat
-    public let algorithm: ImageAlgorithm
-    public let threshold: UInt32
-    public let invert: Bool
-    public let fitWidth: Bool
-    public let targetWidthDots: UInt32
-    public init(data: Data, width: UInt32, height: UInt32, format: PixelFormat = .gray8,
+/// Advanced preparation input; ordinary encoded-image printing uses ImageSource instead.
+final class Pixels: Sendable {
+    let data: Data
+    let width: UInt32
+    let height: UInt32
+    let format: PixelFormat
+    let algorithm: ImageAlgorithm
+    let threshold: UInt32
+    let invert: Bool
+    let fitWidth: Bool
+    let targetWidthDots: UInt32
+    init(data: Data, width: UInt32, height: UInt32, format: PixelFormat = .gray8,
                 algorithm: ImageAlgorithm = .threshold, threshold: UInt32 = 128,
                 invert: Bool = false, fitWidth: Bool = false, targetWidthDots: UInt32 = 0) {
         self.data = data; self.width = width; self.height = height; self.format = format
@@ -84,22 +93,22 @@ public final class Pixels: Sendable {
     }
 }
 
-public enum PrintElement: Sendable {
+enum PrintElement: Sendable {
     case image(Pixels, x: Int32 = 0, y: Int32 = 0)
     case blank(dots: UInt32)
 }
 
 /// Immutable, handle-free print description produced on the manager's background worker.
-public struct PreparedPrint: Sendable {
+struct PreparedPrint: Sendable {
     enum Layout: Sendable { case label(LabelJobOptions), receipt(ReceiptJobOptions) }
     let layout: Layout
     let elements: [PrintElement]
     let finish: ReceiptFinishOptions
     let media: MediaRequirement?
-    public init(label: LabelJobOptions, elements: [PrintElement], mediaRequirement: MediaRequirement? = nil) {
+    init(label: LabelJobOptions, elements: [PrintElement], mediaRequirement: MediaRequirement? = nil) {
         layout = .label(label); self.elements = elements; finish = ReceiptFinishOptions(); media = mediaRequirement
     }
-    public init(receipt: ReceiptJobOptions, elements: [PrintElement],
+    init(receipt: ReceiptJobOptions, elements: [PrintElement],
                 finish: ReceiptFinishOptions = ReceiptFinishOptions(), mediaRequirement: MediaRequirement? = nil) {
         layout = .receipt(receipt); self.elements = elements; self.finish = finish; media = mediaRequirement
     }
@@ -142,10 +151,18 @@ public struct PreparedPrint: Sendable {
 }
 
 public struct StatusResult: Equatable, Sendable {
-    public let knownConditions: UInt32
-    public let activeConditions: UInt32
-    public let sampledMonotonicMilliseconds: UInt64
-    public let evidence: UInt32
+    let knownConditions: UInt32
+    let activeConditions: UInt32
+    let sampledMonotonicMilliseconds: UInt64
+    let evidence: UInt32
+    /// nil means the printer has not supplied evidence for this condition.
+    public var paperOut: Bool? { condition(1 << 0) }
+    public var coverOpen: Bool? { condition(1 << 1) }
+    public var paperNearEnd: Bool? { condition(1 << 2) }
+    public var cutterError: Bool? { condition(1 << 3) }
+    private func condition(_ bit: UInt32) -> Bool? {
+        knownConditions & bit == 0 ? nil : activeConditions & bit != 0
+    }
     init(_ value: HardwareStatusResult) {
         knownConditions = value.knownConditions; activeConditions = value.activeConditions
         sampledMonotonicMilliseconds = value.sampledMonotonicMilliseconds; evidence = value.evidence

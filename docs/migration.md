@@ -1,20 +1,16 @@
-# 迁移到 Manager
+# 迁移到最小移动API
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.5`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.10`
 
-当前移动 API 以 `PrinterManager` 作为唯一控制入口。这是 Java/Swift API 的不兼容迁移，
-C ABI 仍为 native `0.3.0` / ABI `3/r2`；既有 r1/r2 C 消费者不会因移动类型隐藏而失去导出入口。
-旧在线制品、公开样例、候选快照和历史证明继续保留。
+本版为Android／iOS源码不兼容迁移，调用方需要重新编译。native 0.3.0／C ABI3/r2保持，旧制品、标签和冻结公共契约保留。
 
-1. 通过构造器为业务所有者创建独立 Manager；连接只传通信目标，每次打印显式提供 Profile。
-2. 将图片解码和渲染放入 `preparation`，检查取消上下文并返回 `PreparedPrint` 数据描述；
-   不再向应用公开或传递 native image/job/operation 句柄。
-3. 以请求标识和完成回调管理每次操作，读取 `ManagerResult` 的 outcome/code/completion；
-   删除应用自己的 SDK 任务轮询和 IO 队列，不向用户展示内部阶段、队列或资源快照。
-4. 取消调用 `manager.cancel(requestID)`；断开和永久关闭使用各自异步完成回调。
-   页面退出只解除自己的 UI 绑定，共享 Manager 由应用级所有者决定何时关闭。
-5. 区分 dataSent 与 deviceConfirmed，硬件状态未验证时显示未知；遇到断连、超时或取消不自动重放。
+1. 由业务所有者创建PrinterManager。使用DiscoveredDevice／DiscoveredPrinter连接，必要时显式指定已收录PrinterModel。删除ConnectionOptions、BleOptions及调用方自定通信参数。
+2. 删除公开Profile、ImageSource、PixelImage、ImageLoader、ImageLoadContext、ImageRender、PrintOptions、PreparedPrint和preparation闭包。Android直接传Bitmap或PNG/JPEG byte[]；iOS直接传UIImage或PNG/JPEG Data，另传页面widthMm／heightMm。
+3. 删除外部DPI、点密度、预算、原点、份数、阈值、抖动、反色、超时及FORM选项。SDK固定一份、等比缩小居中补白、不放大裁剪。需要新的产品行为时另行明确接口，不通过内部类型绕过。
+4. 按实际耗材调用setPaperType：GAP_LABEL／BLACK_MARK／CONTINUOUS。定位下一张用locateNextLabel，设置和页面尺寸不互相替代。
+5. 保留RequestId／RequestID和一次主线程回调。结果使用稳定错误码、completion与outputMayHaveOccurred；不再读取公开位掩码、队列、epoch、原生句柄或ABI字段。
+6. Flutter统一传完整PNG/JPEG Uint8List，原生插件只转交，保留每个请求唯一回复与detach抑制迟到回调。旧rawRgba数据需要明确编码PNG后再传。
 
-Raw、介质、走纸和查询同样经过 Manager 进入 native 设备队列，不增加旁路 IO。
-完整编译声明与数据 DTO 见 [Java API](android-java-api.md) 和 [Swift API](ios-swift-api.md)，
-经过编译检查的应用会话代码见[接入](integration.md)。
+图片入参在调用期间保持稳定，返回后SDK持有独立快照；取消后仍在退出的读者由SDK管理。App保留自己的文件授权、缓存、日志、UI绑定与后台策略。正常换机等待disconnect，独占所有者结束时close；不自动重连或重放。
+
+完整公开参数见[Java API](android-java-api.md)与[Swift API](ios-swift-api.md)，示例见[接入](integration.md)。

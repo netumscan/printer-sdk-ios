@@ -1,6 +1,6 @@
 import Foundation
 
-public struct PrinterSDKError: LocalizedError, Equatable, Sendable {
+struct PrinterSDKError: LocalizedError, Equatable, Sendable {
     public let code: Int32
     let diagnostic: ErrorDiagnostic?
     public init(_ code: Int32) { self.code = code; self.diagnostic = nil }
@@ -33,7 +33,7 @@ public struct PrinterSDKError: LocalizedError, Equatable, Sendable {
         return "\(message) (\(code))" + (details.map { ": \($0)" } ?? "")
     }
 }
-public struct CpclProfile: Sendable {
+struct CpclProfile: Sendable {
     public let dpi: UInt32
     public let widthDots: UInt32
     public let maxLabelHeightDots: UInt32
@@ -50,7 +50,7 @@ public struct CpclProfile: Sendable {
         self.maxLabelHeightDots = maxLabelHeightDots; self.form = form
     }
 }
-public struct BLEOptions: Sendable {
+struct BLEOptions: Sendable {
     public let service: UUID
     public let writeCharacteristic: UUID
     public let withResponse: Bool
@@ -71,7 +71,7 @@ public struct BLEOptions: Sendable {
     }
 }
 /// Data Transmission V1.2 notification characteristics in the selected service.
-public struct BLECreditFlowControl: Sendable {
+struct BLECreditFlowControl: Sendable {
     public let dataOut: UUID
     public let dataFC: UUID
     public init(dataOut: UUID, dataFC: UUID) {
@@ -79,7 +79,7 @@ public struct BLECreditFlowControl: Sendable {
     }
 }
 /// Explicit receipt device configuration; hardware length limits remain unknown.
-public struct ReceiptProfile: Sendable {
+struct ReceiptProfile: Sendable {
     public let dpi: UInt32
     public let widthDots: UInt32
     public init(dpi: UInt32, widthDots: UInt32) throws {
@@ -88,8 +88,8 @@ public struct ReceiptProfile: Sendable {
         self.dpi = dpi; self.widthDots = widthDots
     }
 }
-public enum CutMode: UInt32, Sendable { case none = 0, full = 1, partial = 2 }
-public enum FinishScope: UInt32, Sendable { case eachCopy = 0, endOfJob = 1 }
+enum CutMode: UInt32, Sendable { case none = 0, full = 1, partial = 2 }
+enum FinishScope: UInt32, Sendable { case eachCopy = 0, endOfJob = 1 }
 enum ConnectionState: UInt32, Sendable {
     case disconnected = 0, connecting = 1, connected = 2, disconnecting = 3
 }
@@ -117,17 +117,22 @@ struct DeviceStateSnapshot: Equatable, Sendable {
     /// Increments on each successful new connection; repeated connect while connected preserves it.
     public let connectionGeneration: UInt64
 }
-public enum PrinterFeature: UInt32, Hashable, Sendable {
+enum PrinterFeature: UInt32, Hashable, Sendable {
     case label = 1, receipt = 2, status = 3, media = 4, cut = 5, raw = 6, image = 7, feedToNextLabel = 8
 }
-public struct FeatureSupport: Equatable, Sendable {
-    public let implementation: UInt32
-    public let deviceSupport: UInt32
-    public let evidence: UInt32
-    public let supportedValues, requiredFields, knownFields, supportedFields: UInt32
-    public var isImplemented: Bool { implementation != 0 }
+public enum Support: Equatable, Sendable { case unknown, unsupported, supported }
+struct FeatureSupport: Equatable, Sendable {
+    let implementation: UInt32
+    let deviceSupport: UInt32
+    let evidence: UInt32
+    let supportedValues, requiredFields, knownFields, supportedFields: UInt32
+    public var support: Support {
+        guard implementation != 0 else { return .unsupported }
+        return deviceSupport == 2 ? .supported : deviceSupport == 1 ? .unsupported : .unknown
+    }
+    var isImplemented: Bool { implementation != 0 }
     /// True only when device support is known. Explicit SPI configuration may remain unknown.
-    public var isSupported: Bool { isImplemented && deviceSupport == 2 }
+    var isSupported: Bool { isImplemented && deviceSupport == 2 }
 }
 /// Independent result owned by PrintOperation; it remains readable after device close.
 struct OperationSnapshot: Equatable, Sendable {
@@ -199,6 +204,6 @@ final class IOResult<Value: Sendable>: @unchecked Sendable {
 }
 
 /// Media mode independent of printer language. Protocol/firmware support requires verification.
-public enum MediaMode: UInt32, CaseIterable, Sendable {
+enum MediaMode: UInt32, CaseIterable, Sendable {
     case gap = 1, blackMark = 2, continuous = 3
 }

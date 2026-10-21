@@ -1,6 +1,6 @@
 # NETUM Printer SDK 接入指南
 
-分发身份 **0.3.0-preview.5**，原生 SDK **0.3.0**，C ABI **3/r2**。
+分发身份 **0.3.0-preview.10**，原生 SDK **0.3.0**，C ABI **3/r2**。
 当前为开发预览，移动 API 使用独立的 `PrinterManager` 管理一个设备；输入、配置和结果均为数据对象。
 开发版本不作为在线发布证明，接入时核对精确版本的契约、制品摘要及实际运行身份。
 软件验证不表示硬件已认证，`hardware_verified=false`。
@@ -9,7 +9,7 @@
 | --- | --- |
 | [接入](integration.md) | 精确依赖与经过编译检查的 Android/iOS App 会话代码 |
 | [API 与生命周期](api-lifecycle.md) | Manager 请求、回调、取消和清理屏障 |
-| [连接与打印配置](configuration.md) | 独立连接、每次打印 Profile、能力与未知状态 |
+| [连接与打印配置](configuration.md) | 内置型号、纸型、页面尺寸、PNG/JPEG与能力未知状态 |
 | [错误码与排障](errors-troubleshooting.md) | 稳定错误码与统一完成结果 |
 | [兼容性](compatibility.md) | 移动 API 迁移和 C ABI 边界 |
 | [迁移](migration.md) | 将旧移动控制入口收敛到 Manager |
