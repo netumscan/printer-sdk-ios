@@ -1,11 +1,11 @@
 # NETUM Printer SDK for iOS
 
-开发预览 **`0.3.0-preview.10`**，原生 SDK **`0.3.0`**、C ABI **`3/r2`**。
+开发预览 **`0.3.0-preview.11`**，原生 SDK **`0.3.0`**、C ABI **`3/r2`**。
 冻结契约状态为 `candidate`；候选声明本身不证明已经签名、上传或线上发布。
 Swift 模块为 `PrinterSDK`，原生模块为 `CPrinterSDK`，Framework Bundle ID 为 `com.netumscan.printersdk.core`。
 
 [客户指南](docs/README.md) 包含权限、连接、图片、回调、错误码与完整公开 API。
-本版移动 API 需要迁移和重新编译；C ABI 3/r2 保持 27 个 C 导出，不兼容 ABI 2。
+本版与 `.10` 的公共调用签名一致，更新精确依赖后重新构建；更早的旧移动 API 需要迁移。C ABI 3/r2 保持 27 个 C 导出，不兼容 ABI 2。
 Swift 包装源码和 C 头随包提供，C++ 核心只以二进制分发。许可和第三方声明见 [LICENSE](LICENSE) 与 [LICENSE-NOTICE.md](LICENSE-NOTICE.md)。
 
 ## 集成
@@ -14,10 +14,10 @@ Swift 包装源码和 C 头随包提供，C++ 核心只以二进制分发。许�
 实际发布后使用精确 SwiftPM 版本：
 
 ```swift
-.package(url: "https://github.com/netumscan/printer-sdk-ios", exact: "0.3.0-preview.10")
+.package(url: "https://github.com/netumscan/printer-sdk-ios", exact: "0.3.0-preview.11")
 ```
 
-候选二进制 URL：[https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.10/XLPrinterSDK.xcframework.zip](https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.10/XLPrinterSDK.xcframework.zip)。准备目录的 `Package.swift` 包含此 URL 与制品校验和；上传前 URL 可能尚不可用。本地独立消费者通过本地 XCFramework 路径验证。
+候选二进制 URL：[https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.11/XLPrinterSDK.xcframework.zip](https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.11/XLPrinterSDK.xcframework.zip)。准备目录的 `Package.swift` 包含此 URL 与制品校验和；上传前 URL 可能尚不可用。本地独立消费者通过本地 XCFramework 路径验证。
 [Samples](https://github.com/netumscan/printer-sdk-samples) 提供精确版本示例，集成时核对对应 SDK 锁。
 
 ## BLE连接与图片
@@ -44,7 +44,7 @@ func connectAndPrint(manager: PrinterManager, device: DiscoveredPrinter, pngJpeg
 
 `printEncodedImage` 接收完整 PNG/JPEG `Data`，编码上限 32 MiB；大图推荐此入口，以便后台按页面目标采样。已有非动画、CGImage 支持的 `UIImage` 时直接使用 `printImage(_:widthMm:heightMm:completion:)`，其源像素 `bytesPerRow × height` 上限为 16 MiB。动画或没有 `cgImage` 的 CI-only／矢量等图片报告 1001；调用方可先渲染为 CGImage 支持的图片，或提供 PNG/JPEG Data。资源超限报告 1008。页面宽高为毫米，按已采用型号的精确点密度换算，不使用图片 DPI 或 `UIImage.scale` 决定纸面尺寸。
 
-两入口返回前取得稳定输入快照，复制期间调用方不得并发修改输入。解码、方向修正、透明白底和缩放在有界后台执行；固定一份、阈值 128、不反色，等比缩小并居中补白，不放大、不裁剪，不隐式 FORM、切纸或下一标签定位。文本、条码等先由 App 绘制成图片。
+Data 在返回前取得独立副本，复制期间调用方不得并发修改输入，返回后可修改原缓冲。UIImage 入口强持有不可变图片，返回后可释放或重新赋值调用方引用；图片属性与 provider 都在后台读取。自定义 CGDataProvider 的底层数据须在 provider 生命周期内保持不变。UIImage 接纳时按 16 MiB 源上限保守预留输入额度，取消／关闭后仍计费并持有图片直到实际读取退出。解码、方向修正、透明白底和缩放在有界后台执行；固定一份、阈值 128、不反色，等比缩小并居中补白，不放大、不裁剪，不隐式 FORM、切纸或下一标签定位。文本、条码等先由 App 绘制成图片。
 
 `setPaperType` 独立采用 `.gapLabel`／`.blackMark`／`.continuous`，不隐式校准或持久化；`locateNextLabel` 独立定位。连接后空闲时可 `setPrinterModel`，以成功回调的 `ConnectionInfo` 为准；型号选择不是硬件认证。
 

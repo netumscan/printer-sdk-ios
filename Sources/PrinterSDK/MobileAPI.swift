@@ -20,47 +20,39 @@ public enum PaperType: CaseIterable, Hashable, Sendable {
 import UIKit
 import CoreGraphics
 
-/// An immutable, owned CGImage provider; no UIImage or caller buffer survives admission.
-final class ApplePixelSnapshot: @unchecked Sendable {
-    private let image: CGImage
-    private let orientation: Int
+/// Owns Apple's immutable image until actual reader exit. Even metadata access can load a purged image.
+/// Custom providers must keep their backing data unchanged for the provider's entire lifetime.
+final class AppleUIImageInput: @unchecked Sendable {
+    private let source: UIImage
     private let reservation: PreparationBudget.InputReservation
-    init(_ source: CGImage, orientation: UIImage.Orientation, budget: PreparationBudget) throws {
-        guard source.width > 0, source.height > 0, source.width <= 32768, source.height <= 32768,
-              source.width <= 64_000_000 / source.height else { throw PrinterSDKError(1008) }
-        guard source.bitsPerPixel > 0, source.bitsPerPixel <= 128,
-              source.bytesPerRow > 0, source.bytesPerRow <= 16 * 1024 * 1024 / source.height,
-              let provider = source.dataProvider, let colorSpace = source.colorSpace,
-              !source.isMask else { throw PrinterSDKError(1008) }
-        let bytes = source.bytesPerRow * source.height
-        // CGDataProviderCopyData may allocate before the deep owned copy is constructed.
-        reservation = try budget.reserveInput(bytes * 2)
-        guard let data = provider.data else { throw PrinterSDKError(1001) }
-        let minimum = (source.height - 1) * source.bytesPerRow + (source.width * source.bitsPerPixel + 7) / 8
-        guard CFDataGetLength(data) >= minimum, CFDataGetLength(data) <= bytes,
-              let start = CFDataGetBytePtr(data) else { throw PrinterSDKError(1001) }
-        let snapshot = Data(bytes: start, count: CFDataGetLength(data))
-        guard let ownedProvider = CGDataProvider(data: snapshot as CFData),
-              let owned = CGImage(width: source.width, height: source.height,
-                bitsPerComponent: source.bitsPerComponent, bitsPerPixel: source.bitsPerPixel,
-                bytesPerRow: source.bytesPerRow, space: colorSpace, bitmapInfo: source.bitmapInfo,
-                provider: ownedProvider, decode: source.decode, shouldInterpolate: false,
-                intent: source.renderingIntent) else { throw PrinterSDKError(1001) }
-        image = owned
-        switch orientation {
-        case .up: self.orientation = 1
-        case .upMirrored: self.orientation = 2
-        case .down: self.orientation = 3
-        case .downMirrored: self.orientation = 4
-        case .leftMirrored: self.orientation = 5
-        case .right: self.orientation = 6
-        case .rightMirrored: self.orientation = 7
-        case .left: self.orientation = 8
-        @unknown default: throw PrinterSDKError(1001)
-        }
+    init(_ source: UIImage, budget: PreparationBudget) throws {
+        // Do not query size, cgImage, animation frames or the provider on the caller's thread.
+        // Charge the maximum supported input before retaining opaque native storage.
+        reservation = try budget.reserveInput(PreparationBudget.maxImageBytes)
+        self.source = source
     }
     func load(_ context: ImageLoadContext) throws -> PixelImage {
+        defer { withExtendedLifetime((source, reservation)) {} }
         try context.checkCancellation()
+        guard source.images == nil, let image = source.cgImage else { throw PrinterSDKError(1001) }
+        try context.checkCancellation()
+        guard image.width > 0, image.height > 0, image.width <= 32768, image.height <= 32768,
+              image.width <= 64_000_000 / image.height else { throw PrinterSDKError(1008) }
+        guard image.bitsPerPixel > 0, image.bitsPerPixel <= 128,
+              image.bytesPerRow > 0, image.bytesPerRow <= PreparationBudget.maxImageBytes / image.height,
+              image.colorSpace != nil, !image.isMask else { throw PrinterSDKError(1008) }
+        let orientation: Int
+        switch source.imageOrientation {
+        case .up: orientation = 1
+        case .upMirrored: orientation = 2
+        case .down: orientation = 3
+        case .downMirrored: orientation = 4
+        case .leftMirrored: orientation = 5
+        case .right: orientation = 6
+        case .rightMirrored: orientation = 7
+        case .left: orientation = 8
+        @unknown default: throw PrinterSDKError(1001)
+        }
         let swapped = orientation >= 5
         let originalWidth = swapped ? image.height : image.width, originalHeight = swapped ? image.width : image.height
         let target = ImageRender.contain(sourceWidth: originalWidth, sourceHeight: originalHeight,
@@ -81,6 +73,7 @@ final class ApplePixelSnapshot: @unchecked Sendable {
             bitmap.interpolationQuality = .none
             bitmap.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
         }
+        try context.checkCancellation()
         try context.resources.reservePixels(width * height)
         var gray = Data(count: width * height)
         try rgba.withUnsafeBytes { input in

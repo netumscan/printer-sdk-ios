@@ -25,9 +25,11 @@ public final class PrinterManager: Sendable {
          makeScanner: @escaping @Sendable () -> BLEScanner = { BLEScanner() },
          connectHooks: ManagerConnectHooks = ManagerConnectHooks(),
          admissionHooks: ManagerAdmissionHooks = ManagerAdmissionHooks(),
-         imageHooks: ManagerImageHooks = ManagerImageHooks()) {
+         imageHooks: ManagerImageHooks = ManagerImageHooks(),
+         preparationBudget: PreparationBudget = PreparationBudget()) {
         state = ManagerState(makePrinter: makePrinter, makeScanner: makeScanner,
-                             connectHooks: connectHooks, admissionHooks: admissionHooks, imageHooks: imageHooks)
+                             connectHooks: connectHooks, admissionHooks: admissionHooks, imageHooks: imageHooks,
+                             preparationBudget: preparationBudget)
     }
     /// The original discovery name recommends a built-in model. Renamed devices require the explicit overload.
     @discardableResult public func connectBle(device: DiscoveredPrinter,
@@ -63,7 +65,7 @@ public final class PrinterManager: Sendable {
         state.printEncodedImage(bytes, widthMm: widthMm, heightMm: heightMm, completion: completion)
     }
     #if canImport(UIKit)
-    /// Takes an owned pixel snapshot. CGImage-backed, non-animated UIImages are supported.
+    /// Retains an immutable UIImage; all image access happens in background preparation.
     @discardableResult public func printImage(_ image: UIImage, widthMm: Double, heightMm: Double,
         completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
         state.printImage(image, widthMm: widthMm, heightMm: heightMm, completion: completion)
@@ -258,7 +260,7 @@ private final class ManagerState: @unchecked Sendable {
     private let connectHooks: ManagerConnectHooks
     private let admissionHooks: ManagerAdmissionHooks
     private let imageHooks: ManagerImageHooks
-    private let preparationBudget = PreparationBudget()
+    private let preparationBudget: PreparationBudget
     private var requests: [RequestID: ManagerRequest] = [:]
     private var pending: [ManagerRequest] = []
     private var coordinatorRunning = false
@@ -280,9 +282,11 @@ private final class ManagerState: @unchecked Sendable {
          makeScanner: @escaping @Sendable () -> BLEScanner = { BLEScanner() },
          connectHooks: ManagerConnectHooks = ManagerConnectHooks(),
          admissionHooks: ManagerAdmissionHooks = ManagerAdmissionHooks(),
-         imageHooks: ManagerImageHooks = ManagerImageHooks()) {
+         imageHooks: ManagerImageHooks = ManagerImageHooks(),
+         preparationBudget: PreparationBudget = PreparationBudget()) {
         self.makePrinter = makePrinter; self.makeScanner = makeScanner
         self.connectHooks = connectHooks; self.admissionHooks = admissionHooks; self.imageHooks = imageHooks
+        self.preparationBudget = preparationBudget
     }
     private func locked<T>(_ body: () throws -> T) rethrows -> T { lock.lock(); defer { lock.unlock() }; return try body() }
     private func request<Value: Sendable>(_ timeout: UInt32 = 120000,
@@ -529,9 +533,11 @@ private final class ManagerState: @unchecked Sendable {
     func printImage(_ image: UIImage, widthMm: Double, heightMm: Double,
         completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
         do {
-            guard image.images == nil, let cg = image.cgImage else { throw PrinterSDKError(1001) }
-            let snapshot = try ApplePixelSnapshot(cg, orientation: image.imageOrientation, budget: preparationBudget)
-            return printImageSource(ImageSource.deferred { try snapshot.load($0) },
+            let input = try AppleUIImageInput(image, budget: preparationBudget)
+            return printImageSource(ImageSource.deferred { context in
+                self.imageHooks.beforeDecode()
+                return try input.load(context)
+            },
                 widthMm: widthMm, heightMm: heightMm, completion: completion)
         } catch { return reject(errorCode(error), completion: completion) }
     }
