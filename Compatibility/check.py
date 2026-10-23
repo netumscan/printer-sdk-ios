@@ -114,8 +114,8 @@ def main():
             info = plistlib.loads((native / "Info.plist").read_bytes())
             if info.get("CFBundleIdentifier") != "com.netumscan.printersdk.core":
                 raise RuntimeError("Unexpected native framework identity")
-            run(["xcrun", "lipo", "-verify_arch", arch, app / "Consumer"])
-            run(["xcrun", "lipo", "-verify_arch", arch, native / "CPrinterSDK"])
+            run(["xcrun", "lipo", app / "Consumer", "-verify_arch", arch])
+            run(["xcrun", "lipo", native / "CPrinterSDK", "-verify_arch", arch])
             report["architectures"].append({"sdk": sdk, "architecture": arch, "release_build_passed": True,
                                              "swift_language_mode": "5", "whole_module_optimization": True,
                                              "native_binary_version": "0.3.0-preview.15"})
