@@ -2557,7 +2557,7 @@
           }
         },
         "schema": 1,
-        "snapshot": "docs/api/candidates/0.3.0-preview.14/printer_sdk.h"
+        "snapshot": "docs/api/candidates/0.3.0-preview.15/printer_sdk.h"
       }
     },
     "manifest": {
@@ -2566,8 +2566,8 @@
         "version": 3
       },
       "c_abi": {
-        "baseline": "docs/api/candidates/0.3.0-preview.14/BASELINE.json",
-        "baseline_sha256": "1ef2a186dc13c494317d093d57ae4ce73a503ef8cf60f816626e6c33f4308e3b"
+        "baseline": "docs/api/candidates/0.3.0-preview.15/BASELINE.json",
+        "baseline_sha256": "60c41cdf75fbc1190435685ea322bab44f381620ba0bd31fff380c76b99e3793"
       },
       "contract_status": "candidate",
       "historical_baseline_version": "0.2.0-preview.3",
@@ -2598,21 +2598,21 @@
       ],
       "mobile": {
         "android": {
-          "annotations": "docs/api/candidates/0.3.0-preview.14/android.json",
+          "annotations": "docs/api/candidates/0.3.0-preview.15/android.json",
           "annotations_sha256": "8269c96693e867167d04294acf1740d8d98d8bd176d4a09f2ade8ba27d10547f",
-          "baseline": "docs/api/candidates/0.3.0-preview.14/android-java.txt",
+          "baseline": "docs/api/candidates/0.3.0-preview.15/android-java.txt",
           "baseline_sha256": "49d9629dfc0027c4800486a48808472b39ff9c75645bea7a35f4c0f4a3a49d45"
         },
         "apple": {
-          "annotations": "docs/api/candidates/0.3.0-preview.14/apple.json",
-          "annotations_sha256": "f2bb9a4ca4cf195040e3860c38c33dc78f36db5195dab6c201d485a0b337f305",
-          "baseline": "docs/api/candidates/0.3.0-preview.14/apple-swift.txt",
-          "baseline_sha256": "647f51820f25fe6c57f1be73d047c69d13e9611b39cccbf56f8a3c5427aa7d3f"
+          "annotations": "docs/api/candidates/0.3.0-preview.15/apple.json",
+          "annotations_sha256": "cf3e03d7ed938305a2d70ee605f5973fe0809dc41942d13304e89432f9419b36",
+          "baseline": "docs/api/candidates/0.3.0-preview.15/apple-swift.txt",
+          "baseline_sha256": "197498b66174e391abd4b8d5704ea4e09762b775f3fb6ff55d16b92653125307"
         }
       },
       "native_sdk_version": "0.3.0",
       "schema": 3,
-      "sdk_version": "0.3.0-preview.14"
+      "sdk_version": "0.3.0-preview.15"
     }
   },
   "contract_status": "candidate",
@@ -2727,5 +2727,5 @@
     }
   ],
   "schema": 2,
-  "sdk_version": "0.3.0-preview.14"
+  "sdk_version": "0.3.0-preview.15"
 }

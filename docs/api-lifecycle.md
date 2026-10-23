@@ -1,6 +1,6 @@
 # API与生命周期
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.14`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.15`
 
 Android使用PrinterManager(Context)，iOS使用无参构造；每实例拥有一个设备连接。所有异步操作立即返回RequestId／RequestID，主线程交付一次ManagerResult。参数、状态、准备、接纳或执行失败均走同一结果；不要同步等待主线程回调。
 

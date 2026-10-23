@@ -1,11 +1,11 @@
 # NETUM Printer SDK for iOS
 
-开发预览 **`0.3.0-preview.14`**，原生 SDK **`0.3.0`**、C ABI **`3/r3`**。
+开发预览 **`0.3.0-preview.15`**，原生 SDK **`0.3.0`**、C ABI **`3/r3`**。
 冻结契约状态为 `candidate`；候选声明本身不证明已经签名、上传或线上发布。
-Swift 模块为 `PrinterSDK`，原生模块为 `CPrinterSDK`，Framework Bundle ID 为 `com.netumscan.printersdk.core`。
+Swift 模块与两个包管理器的产品名均为 `XLPrinterSDK`，原生模块为 `CPrinterSDK`，Framework Bundle ID 为 `com.netumscan.printersdk.core`。
 
 [客户指南](docs/README.md) 包含权限、连接、图片、回调、错误码与完整公开 API。
-本版将 queryStatus 改为 getStatus，请求结果为 Void，状态统一经 setStatusListener 通知；连接时自动读取可选 ConnectionInfo.printerInfo。移动调用方需要重新编译。C ABI3/r3为28个C导出，不兼容ABI2。
+本版将 Swift 模块及 SwiftPM 产品从 `PrinterSDK` 改为 `XLPrinterSDK`，并增加 CocoaPods 分发配置。调用方须更新 import 和产品依赖后重新编译；不提供旧模块别名。状态、打印行为与 C ABI 3/r3 的 28 个 C 导出保持。
 Swift 包装源码和 C 头随包提供，C++ 核心只以二进制分发。许可和第三方声明见 [LICENSE](LICENSE) 与 [LICENSE-NOTICE.md](LICENSE-NOTICE.md)。
 
 ## 集成
@@ -14,10 +14,25 @@ Swift 包装源码和 C 头随包提供，C++ 核心只以二进制分发。许�
 实际发布后使用精确 SwiftPM 版本：
 
 ```swift
-.package(url: "https://github.com/netumscan/printer-sdk-ios", exact: "0.3.0-preview.14")
+.package(url: "https://github.com/netumscan/printer-sdk-ios", exact: "0.3.0-preview.15")
 ```
 
-候选二进制 URL：[https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.14/XLPrinterSDK.xcframework.zip](https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.14/XLPrinterSDK.xcframework.zip)。准备目录的 `Package.swift` 包含此 URL 与制品校验和；上传前 URL 可能尚不可用。本地独立消费者通过本地 XCFramework 路径验证。
+SwiftPM 的 target 依赖使用 `.product(name: "XLPrinterSDK", package: "printer-sdk-ios")`。
+
+CocoaPods 使用同一公开仓库的精确标签，不需要中央 Specs 源条目：
+
+```ruby
+platform :ios, '15.0'
+pod 'XLPrinterSDK', :git => 'https://github.com/netumscan/printer-sdk-ios.git', :tag => 'v0.3.0-preview.15'
+```
+
+`pod install` 获取 Swift 包装源码，并下载固定版本的原生 ZIP，先验证 SHA-256，再解压到 `Binaries/CPrinterSDK.xcframework`。隐私清单由 `XLPrinterSDK_Privacy.bundle` 随 App 分发。两个包管理器应择一用于同一 App target，避免重复链接原生库。
+
+本地 CocoaPods `:path` 接入须先校验准备目录中的 ZIP（SHA-256 `db3ecea6d2a69258781295c8594689af948bfd9935ea28dc4dc2466e714b6d70`），再解压到该包的 `Binaries/`；然后使用 `pod 'XLPrinterSDK', :path => '/absolute/path/to/distribution'`。预置的本地二进制使 `prepare_command` 跳过下载，本地集成者负责校验该目录。公开源包不含预置二进制，远程安装始终先校验下载。SwiftPM Consumer 同样可使用此 XCFramework 的本地路径。
+
+本地准备与契约冻结不表示该版本已发布；未发布的标签、远程 SwiftPM 版本、ZIP 或 CocoaPods 中央源条目均不可假定已存在。以上远程配置只在该精确版本实际发布后适用。
+
+候选二进制 URL：[https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.15/XLPrinterSDK.xcframework.zip](https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.15/XLPrinterSDK.xcframework.zip)。准备目录的 `Package.swift` 包含此 URL 与制品校验和；上传前 URL 可能尚不可用。本地独立消费者通过本地 XCFramework 路径验证。
 [Samples](https://github.com/netumscan/printer-sdk-samples) 提供精确版本示例，集成时核对对应 SDK 锁。
 
 ## BLE连接与图片
@@ -28,7 +43,7 @@ App `Info.plist` 配置 `NSBluetoothAlwaysUsageDescription`。每个 `PrinterMan
 
 ```swift
 import Foundation
-import PrinterSDK
+import XLPrinterSDK
 
 func connectAndPrint(manager: PrinterManager, device: DiscoveredPrinter, pngJpeg: Data) {
     manager.connectBle(device: device, model: .ltM90, completion: { connection in
@@ -58,7 +73,7 @@ Flutter 的 PNG/JPEG `Uint8List` 经标准 codec 转为 `FlutterStandardTypedDat
 
 ## 隐私与验证范围
 
-SDK 不包含分析、广告或遥测上传。SwiftPM 保留 `PrivacyInfo.xcprivacy`，系统启动时间 API 声明 `35F9.1`；App 仍按自身行为完成隐私披露。
+SDK 不包含分析、广告或遥测上传。SwiftPM 和 CocoaPods 均保留 `PrivacyInfo.xcprivacy`，系统启动时间 API 声明 `35F9.1`；App 仍按自身行为完成隐私披露。
 
 `hardware_verified=false`。源码编译、制品消费者与模拟器检查不等于真实无线、纸面或手机峰值内存验收；旧在线版本报告不替代本版验证。SDK 不公开底层作业、图片准备对象、平台句柄或队列控制接口。
 

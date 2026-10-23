@@ -3,9 +3,9 @@
   "abi_version": 3,
   "archive": "XLPrinterSDK.xcframework.zip",
   "artifacts": {
-    "release/XLPrinterSDK.xcframework.zip": "8bb5e18cd7dff62b09373e3eefa25abbfd65de5740ecb67502bbd8ecb04eeb84"
+    "release/XLPrinterSDK.xcframework.zip": "db3ecea6d2a69258781295c8594689af948bfd9935ea28dc4dc2466e714b6d70"
   },
-  "binary_url": "https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.14/XLPrinterSDK.xcframework.zip",
+  "binary_url": "https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.15/XLPrinterSDK.xcframework.zip",
   "channel": "github-swiftpm",
   "contract_status": "candidate",
   "framework_bundle_identifier": "com.netumscan.printersdk.core",
@@ -17,7 +17,7 @@
   ],
   "published_contract_verified": false,
   "sdk_version": "0.3.0",
-  "sha256": "8bb5e18cd7dff62b09373e3eefa25abbfd65de5740ecb67502bbd8ecb04eeb84",
+  "sha256": "db3ecea6d2a69258781295c8594689af948bfd9935ea28dc4dc2466e714b6d70",
   "slices": [
     {
       "architectures": [
@@ -38,10 +38,10 @@
     "local_status": "passed",
     "online_runtime_required": true,
     "policy": "sdk-software-v5",
-    "report_sha256": "157000a205e1fa821ff4885b5079f2863f6ef80dbf28cb20004c815b017ab9c1"
+    "report_sha256": "da6bde5bc029abc792828a5af5ece1820dda0750198621d0d359bd976d0de35e"
   },
-  "source_base_commit": "9a2a31c7311e1ef5e57ac84146620fcbe2c4228b",
-  "source_input_sha256": "605169e74f01fe37749e87232032a4242c7fb0e0802c6678a0486efef406c317",
+  "source_base_commit": "9500c94bb98e739e71c5efebcfc2ef26421bbb0e",
+  "source_input_sha256": "ec3d138ce578bde1310acda1feb50da0f07f58dfaabfdeb6548893a551896eef",
   "source_is_worktree_snapshot": true,
-  "version": "0.3.0-preview.14"
+  "version": "0.3.0-preview.15"
 }
