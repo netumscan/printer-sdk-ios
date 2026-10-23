@@ -1,6 +1,18 @@
 import CoreBluetooth
 import Foundation
 
+// Shared synchronous read policy, independent of CoreBluetooth delegate handles.
+// Native cancellation includes its deadline; runtime owns query-failure policy.
+func readBLEData(_ buffer: BLEReceiveBuffer, maxBytes: Int, _ control: IOControl,
+                 close: () -> Void) throws -> Data {
+    do { return try buffer.read(maxBytes: maxBytes, control) }
+    catch {
+        let code = (error as? PrinterSDKError)?.code
+        if code != 2001 && code != 1005 { close() }
+        throw error
+    }
+}
+
 // A fresh delegate/session per connection prevents stale callbacks crossing reconnects.
 // lock protects session/observer. BLESession confines native Bluetooth handles to
 // its delegate queue; IOControl stays borrowed on the synchronous native IO caller.
@@ -10,11 +22,12 @@ final class CoreBluetoothChannel: BluetoothByteChannel, @unchecked Sendable {
     private let options: BLEOptions
     private var session: BLESession?
     private var observer: ChannelConnectionObserver?
+    private var receiveHandler: ChannelReceiveHandler?
     init(identifier: UUID, options: BLEOptions) { self.identifier = identifier; self.options = options }
     func open(_ control: IOControl) throws {
         close()
-        lock.lock(); let observer = observer; lock.unlock()
-        let value = BLESession(identifier: identifier, options: options, observer: observer)
+        lock.lock(); let observer = observer, receiveHandler = receiveHandler; lock.unlock()
+        let value = BLESession(identifier: identifier, options: options, observer: observer, receiveHandler: receiveHandler)
         lock.lock(); session = value; lock.unlock()
         do { try value.open(control) } catch { value.close(); throw error }
     }
@@ -22,6 +35,11 @@ final class CoreBluetoothChannel: BluetoothByteChannel, @unchecked Sendable {
         lock.lock(); let value = session; lock.unlock()
         guard let value else { throw PrinterSDKError(2000) }
         return try value.write(data, control)
+    }
+    func read(maxBytes: Int, _ control: IOControl) throws -> Data {
+        lock.lock(); let value = session; lock.unlock()
+        guard let value else { throw PrinterSDKError(2000) }
+        return try value.read(maxBytes: maxBytes, control)
     }
     func close() {
         lock.lock(); let value = session; session = nil; lock.unlock()
@@ -32,6 +50,13 @@ final class CoreBluetoothChannel: BluetoothByteChannel, @unchecked Sendable {
     }
     func setConnectionObserver(_ observer: ChannelConnectionObserver?) {
         lock.lock(); self.observer = observer; lock.unlock()
+    }
+    func setReceiveHandler(_ handler: ChannelReceiveHandler?) {
+        lock.lock(); receiveHandler = handler; let value = session; lock.unlock()
+        value?.setReceiveHandler(handler)
+    }
+    func discardReadbackData() {
+        lock.lock(); let value = session; lock.unlock(); value?.discardReadbackData()
     }
     deinit { close() }
 }
@@ -49,6 +74,7 @@ private final class BLESession: NSObject, CBCentralManagerDelegate, CBPeripheral
     private var dataFC: CBCharacteristic?
     private var awaitingNotifications = Set<CBUUID>()
     private var credits = BLECredits()
+    private let received = BLEReceiveBuffer()
     private let opening = IOResult<Void>()
     private var writing: (result: IOResult<Int>, data: Data, count: Int)?
     private var closed = false
@@ -56,8 +82,10 @@ private final class BLESession: NSObject, CBCentralManagerDelegate, CBPeripheral
     private var connecting = false
     private let observer: ChannelConnectionObserver?
     private let epoch: UInt64
-    init(identifier: UUID, options: BLEOptions, observer: ChannelConnectionObserver?) {
+    private var receiveHandler: ChannelReceiveHandler?
+    init(identifier: UUID, options: BLEOptions, observer: ChannelConnectionObserver?, receiveHandler: ChannelReceiveHandler?) {
         self.identifier = identifier; self.options = options; self.observer = observer
+        self.receiveHandler = receiveHandler
         self.epoch = observer?.epoch() ?? 0; super.init()
     }
     var isOpen: Bool { queue.sync { ready && !closed } }
@@ -70,6 +98,13 @@ private final class BLESession: NSObject, CBCentralManagerDelegate, CBPeripheral
         do { try opening.wait(control) } catch { close(); throw error }
     }
     func close() { queue.sync { stop(PrinterSDKError(2002)) } }
+    func discardReadbackData() { queue.sync { received.discard() } }
+    func setReceiveHandler(_ handler: ChannelReceiveHandler?) {
+        queue.async {
+            guard !self.closed else { handler?.reset(); return }
+            self.receiveHandler?.reset(); self.receiveHandler = handler
+        }
+    }
     private func stop(_ error: PrinterSDKError, unexpected: Bool = false,
                       nativeError: Error? = nil, managerState: CBManagerState? = nil) {
         guard !closed else { return }
@@ -81,6 +116,8 @@ private final class BLESession: NSObject, CBCentralManagerDelegate, CBPeripheral
             domain: managerState != nil ? "CoreBluetooth.State" : (knownDomain ? native!.domain : "CoreBluetooth"))
         let failure = PrinterSDKError(error.code, diagnostic: diagnostic)
         closed = true; ready = false
+        receiveHandler?.reset(); receiveHandler = nil
+        received.close(failure)
         opening.complete(.failure(failure)); writing?.result.complete(.failure(failure)); writing = nil
         if let peripheral { central?.cancelPeripheralConnection(peripheral); peripheral.delegate = nil }
         central?.delegate = nil; peripheral = nil; characteristic = nil
@@ -108,6 +145,13 @@ private final class BLESession: NSObject, CBCentralManagerDelegate, CBPeripheral
             self.sendIfReady()
         }
         do { return try result.wait(control) } catch { close(); throw error }
+    }
+    func read(maxBytes: Int, _ control: IOControl) throws -> Data {
+        try queue.sync {
+            guard ready, !closed else { throw PrinterSDKError(2000) }
+            guard dataOut != nil else { throw PrinterSDKError(1004) }
+        }
+        return try readBLEData(received, maxBytes: maxBytes, control, close: { self.close() })
     }
     private func sendIfReady() {
         guard let write = writing, write.result.isPending, ready, !closed,
@@ -192,7 +236,13 @@ private final class BLESession: NSObject, CBCentralManagerDelegate, CBPeripheral
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor value: CBCharacteristic, error: Error?) {
         guard !closed, peripheral === self.peripheral, value === dataOut || value === dataFC else { return }
         guard error == nil else { stop(PrinterSDKError(2003), unexpected: true, nativeError: error); return }
-        // Data Out is subscribed, but no status/ACK contract exists; do not retain payloads.
+        if value === dataOut {
+            do {
+                if let data = value.value { try received.receive(receiveHandler?.receive(data) ?? data) }
+            }
+            catch { stop(PrinterSDKError(2003), unexpected: true) }
+            return
+        }
         guard value === dataFC else { return }
         do {
             guard let data = value.value else { throw PrinterSDKError(3000) }

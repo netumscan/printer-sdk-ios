@@ -138,7 +138,14 @@ private final class OperationObservation: @unchecked Sendable {
         var value = psdk_operation_result()
         _ = psdk_operation_result_init(&value, MemoryLayout.size(ofValue: value))
         try appSupportCheck(psdk_operation_get_result(handle, &value))
-        let result = operationResultValue(value)
+        var printerInfo: PrinterInfo?
+        if value.snapshot.kind == UInt32(PSDK_OP_INFO), value.snapshot.response_valid != 0 {
+            var info = psdk_printer_info()
+            _ = psdk_printer_info_init(&info, MemoryLayout.size(ofValue: info))
+            try appSupportCheck(psdk_operation_get_printer_info(handle, &info))
+            printerInfo = PrinterInfo(info)
+        }
+        let result = operationResultValue(value, printerInfo: printerInfo)
         terminal = result; self.handle = nil; psdk_operation_release(handle)
         return result
     }

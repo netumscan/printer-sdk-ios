@@ -160,6 +160,12 @@ public struct StatusResult: Equatable, Sendable {
     public var coverOpen: Bool? { condition(1 << 1) }
     public var paperNearEnd: Bool? { condition(1 << 2) }
     public var cutterError: Bool? { condition(1 << 3) }
+    static var unknown: StatusResult { StatusResult(HardwareStatusResult(knownConditions: 0,
+        activeConditions: 0, sampledMonotonicMilliseconds: 0, connectionGeneration: 0, evidence: 0)) }
+    func sameConditions(as other: StatusResult) -> Bool {
+        paperOut == other.paperOut && coverOpen == other.coverOpen &&
+            paperNearEnd == other.paperNearEnd && cutterError == other.cutterError
+    }
     private func condition(_ bit: UInt32) -> Bool? {
         knownConditions & bit == 0 ? nil : activeConditions & bit != 0
     }

@@ -1,13 +1,13 @@
 # iOS Swift API 参考
 
-发布候选版本 **0.3.0-preview.11**；原生 SDK **0.3.0**；C ABI **3/r2**。
+发布候选版本 **0.3.0-preview.14**；原生 SDK **0.3.0**；C ABI **3/r3**。
 
-本页逐项覆盖审定的编译器公共 API 基线，共 **88** 个文档条目。
+本页逐项覆盖审定的编译器公共 API 基线，共 **110** 个文档条目。
 声明、JVM descriptor、常量、枚举和编译器关系均来自基线，说明按稳定文档 ID 维护。
 机器可读的完整基线与说明见 [api-reference.json](api-reference.json)；运行
 `python3 tools/check-api-reference.py` 可检查覆盖范围、审定 SHA-256 和本页字节一致性。
 
-基线 SHA-256：`8aaed8263549d0d9ea0abc7c14918fdf38492531e97e975143c2d1c583533377`
+基线 SHA-256：`647f51820f25fe6c57f1be73d047c69d13e9611b39cccbf56f8a3c5427aa7d3f`
 
 运行约束与错误处理见 [API 与生命周期](api-lifecycle.md) 和 [错误码与排障](errors-troubleshooting.md)。
 本页是未发布的发布候选契约，不代表发布制品或公开历史证明。硬件验收仍暂缓，`hardware_verified=false`。
@@ -21,6 +21,7 @@
 - [ManagerResult](#api-d5c711f55a02b7703b81)
 - [PaperType](#api-d45d66e9043cfc850df0)
 - [PrinterCapabilities](#api-51947abf7e628a2d3bc3)
+- [PrinterInfo](#api-0e885a04f27772f30231)
 - [PrinterManager](#api-1d5ad0ccf40ef0036743)
 - [PrinterModel](#api-3f9717fd53ac6f2b1f4b)
 - [RequestID](#api-98f79d03f589f3f1383b)
@@ -304,13 +305,13 @@ var rawAttachmentValueRepresentation: CVAttachmentRawValue { get }
 
 ### ConnectionInfo
 
-连接成功或型号更新后采用的本地配置。
+连接结果及本连接可选的设备报告。
 
 ```swift
 struct ConnectionInfo
 ```
 
-只读的设备目标和可选型号；型号来自原发现名称推荐或显式选择，不代表打印机已认证其硬件身份。未采用型号时保持空值。
+包含设备目标、已采用的可选型号和本次自动查询得到的可选printerInfo。型号来自本地配置，printerInfo来自设备回读，二者不能互相替代。信息未知或可选查询失败为空；重新连接重新查询，不继承旧设备信息。
 
 文档 ID：`apple:symbol:s:10PrinterSDK14ConnectionInfoV`
 
@@ -359,6 +360,28 @@ var model: PrinterModel? { get }
 | 名称 | precise identifier |
 | --- | --- |
 | PrinterModel | `s:10PrinterSDK0A5ModelO` |
+
+<a id="api-98aad6c694fb97dfce67"></a>
+
+### ConnectionInfo.printerInfo
+
+本次连接自动读回的可选设备信息。
+
+```swift
+let printerInfo: PrinterInfo?
+```
+
+已采用且支持信息方言的型号在通信建立后，通过原设备FIFO自动查询一次，额外预算最多1000ms。回读超时、坏包或不支持时为空，保持可用连接与打印；真实通信故障和显式取消仍按原连接语义处理。不写入型号Profile，不沿用上次连接结果，修改型号不重复查询。
+
+文档 ID：`apple:symbol:s:10PrinterSDK14ConnectionInfoV07printerD0AA0aD0VSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| PrinterInfo | `s:10PrinterSDK0A4InfoV` |
 
 <a id="api-e7eba043862754865338"></a>
 
@@ -763,7 +786,7 @@ let requestID: RequestID
 let value: Value?
 ```
 
-连接、能力、状态、身份和发现请求成功时使用对应类型；打印等无返回值操作、失败和取消为空。
+连接、能力、身份和发现请求成功时使用对应类型；getStatus、打印等Void操作以及失败／取消为空。状态值经setStatusListener通知，不在getStatus结果中重复返回。
 
 文档 ID：`apple:symbol:s:10PrinterSDK13ManagerResultV5valuexSgvp`
 
@@ -1023,13 +1046,13 @@ Raw仍进入与打印相同的设备FIFO。支持发送字节不证明这些字�
 
 ### PrinterCapabilities.statusQuery
 
-硬件状态请求的支持程度。
+主动getStatus查询的支持程度。
 
 ```swift
 var statusQuery: Support { get }
 ```
 
-支持必须有协议和读取响应依据，具备读取函数不自动等于可查询状态。UNKNOWN/unknown仍表示未知。
+描述已实现的主动设备事务，不把读取函数或被动缓存当查询。LT-M90适配后端选择GS a 00；执行仍受连接、型号和INFO软失败后的查询失效策略约束。与独立statusReporting不可互推，未知保持UNKNOWN／unknown。
 
 文档 ID：`apple:symbol:s:10PrinterSDK0A12CapabilitiesV11statusQueryAA7SupportOvp`
 
@@ -1040,6 +1063,452 @@ var statusQuery: Support { get }
 | 名称 | precise identifier |
 | --- | --- |
 | Support | `s:10PrinterSDK7SupportO` |
+
+<a id="api-6ee11d6a3b58f66e2fed"></a>
+
+### PrinterCapabilities.statusReporting
+
+设备主动状态上报的支持程度。
+
+```swift
+var statusReporting: Support { get }
+```
+
+独立于主动查询statusQuery。已适配后端在无有效被动样本时为UNKNOWN／unknown，有效err:上报后为SUPPORTED／supported；查询裸回复不提升此证据。Android LT-M90 BLE／SPP与iOS BLE有后端，未适配后端为UNSUPPORTED／unsupported；断开／换型号清除旧证据。2026-10-23同一台LT-M90的Android BLE／SPP、iOS BLE已完成正常盖纸变化和Demo刷新验收；范围限于当前设备与固件，其他固件及真机强制故障仍未验证。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A12CapabilitiesV15statusReportingAA7SupportOvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Support | `s:10PrinterSDK7SupportO` |
+
+<a id="api-0e885a04f27772f30231"></a>
+
+## PrinterInfo
+
+<a id="api-f20bc4220dcc1a24ae2d"></a>
+
+### PrinterInfo
+
+打印机信息查询的不可变设备观察值。
+
+```swift
+struct PrinterInfo
+```
+
+名称、电量、温度和能力标记来自JXIG候选回包，未知值为空。所有结果保留protocolVerified=false；不改变已采用型号，不将文档版本当作固件、UID当作序列号，也不推断实际打印完成。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV`
+
+符号种类：`swift.struct`；访问级别：`public`。
+
+<a id="api-9b5d2a1bc38468538e53"></a>
+
+### PrinterInfo.!=(_:_:)
+
+比较两份打印机信息值是否不同。
+
+```swift
+static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool
+```
+
+Swift的Equatable协议合成比较；只比较值，不发送设备指令，不将字段变化解释为新设备或打印任务完成。
+
+文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK0A4InfoV`
+
+符号种类：`swift.func.op`；访问级别：`public`。
+
+这是编译器为当前类型带入的协议扩展／合成公共成员。
+
+扩展来源（保留基线原值）：
+
+```json
+{"extendedModule":"Swift","typeKind":"swift.protocol"}
+```
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Bool | `s:Sb` |
+
+<a id="api-7b02b55d0308efb9925e"></a>
+
+### PrinterInfo.batteryPercent
+
+可选的电池电量百分比。
+
+```swift
+let batteryPercent: Int32?
+```
+
+仅接受文档的1至100；0或其他未知值为空。电源供电标记0xff通过externalPower单独表示，不转换为百分比。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV14batteryPercents5Int32VSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Int32 | `s:s5Int32V` |
+
+<a id="api-15c8e96b322898c89b98"></a>
+
+### PrinterInfo.densityLevel
+
+可选的设备浓度等级读回。
+
+```swift
+let densityLevel: Int32?
+```
+
+保留文档的0至15，其他值为空；本轮仅查询，不提供浓度设置或持久化操作。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV12densityLevels5Int32VSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Int32 | `s:s5Int32V` |
+
+<a id="api-ac669257ab799ecaacc2"></a>
+
+### PrinterInfo.deviceName
+
+打印机回报的设备名称。
+
+```swift
+let deviceName: String?
+```
+
+仅接收可打印ASCII文本；它不是已认证型号，也不会改变当前采用的打印型号或几何配置。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV10deviceNameSSSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| String | `s:SS` |
+
+<a id="api-366c133e121a1f82d3d1"></a>
+
+### PrinterInfo.externalPower
+
+可选的外部电源供电标记。
+
+```swift
+let externalPower: Bool?
+```
+
+0xff映射为真，已知电池电量映射为假；其他值为空，不以缺少电量数据推断电源状态。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV13externalPowerSbSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Bool | `s:Sb` |
+
+<a id="api-46c3c7f2ba6bd0becefe"></a>
+
+### PrinterInfo.hasError
+
+可选的粗粒度打印机异常标记。
+
+```swift
+let hasError: Bool?
+```
+
+0映射为假、1映射为真，其他值为空；不能区分缺纸、开盖等故障，也不能用于判定机械打印完成。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV8hasErrorSbSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Bool | `s:Sb` |
+
+<a id="api-04057c216db4504d3883"></a>
+
+### PrinterInfo.manufacturer
+
+打印机回报的厂商名称。
+
+```swift
+let manufacturer: String?
+```
+
+仅接收字段中的可打印ASCII文本；编码未知或字段为空时为未知，不使用发现名称代填。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV12manufacturerSSSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| String | `s:SS` |
+
+<a id="api-41d98bc27b9c535fa18d"></a>
+
+### PrinterInfo.maxPrintWidthDots
+
+打印机回报的一行最大点数。
+
+```swift
+let maxPrintWidthDots: UInt32?
+```
+
+非零值以点为单位保留，零值视为未知；信息查询不会自动修改已采用型号的打印宽度。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV17maxPrintWidthDotss6UInt32VSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| UInt32 | `s:s6UInt32V` |
+
+<a id="api-4972c0127f6c948b9ef9"></a>
+
+### PrinterInfo.paperTypeCode
+
+可选的设备纸张类型原始代码。
+
+```swift
+let paperTypeCode: Int32?
+```
+
+候选值0为连续纸、1为标签纸、2为黑标纸、3为纹身纸；其他值为空。它不自动设置纸型或扩展公共PaperType枚举。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV13paperTypeCodes5Int32VSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Int32 | `s:s5Int32V` |
+
+<a id="api-e474d9f0cf27457b4617"></a>
+
+### PrinterInfo.printheadTemperatureCelsius
+
+可选的打印头温度。
+
+```swift
+let printheadTemperatureCelsius: Int32?
+```
+
+按有符号字节解释为摄氏度，仅保留文档的-40至85范围；超出范围为未知，不代替过热故障查询。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV27printheadTemperatureCelsiuss5Int32VSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Int32 | `s:s5Int32V` |
+
+<a id="api-432a2ba6e1e84c1e7fe9"></a>
+
+### PrinterInfo.protocolVerified
+
+候选报文格式是否通过硬件验证。
+
+```swift
+let protocolVerified: Bool
+```
+
+当前始终为假；通过候选长度与校验检查不等于实际LT-M90报文及字段含义已验证，也不等于打印完成。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV16protocolVerifiedSbvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Bool | `s:Sb` |
+
+<a id="api-8142fcfc504bf9ea96c2"></a>
+
+### PrinterInfo.reportedDpi
+
+打印机回报的文档DPI类型。
+
+```swift
+let reportedDpi: UInt32?
+```
+
+候选映射为200、300或600；未知类型为空。它不替代LT-M90型号使用的精确8 dots/mm几何依据。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV11reportedDpis6UInt32VSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| UInt32 | `s:s6UInt32V` |
+
+<a id="api-1a0bf72665f33c7133a3"></a>
+
+### PrinterInfo.reportedVersion
+
+文档中的原始版本数值。
+
+```swift
+let reportedVersion: UInt32?
+```
+
+按候选小端格式解释为0至65535的无符号值；文档没有确认其是固件版本，不据此推导固件身份。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV15reportedVersions6UInt32VSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| UInt32 | `s:s6UInt32V` |
+
+<a id="api-8c146f165176659d44eb"></a>
+
+### PrinterInfo.speedLevel
+
+可选的设备速度等级读回。
+
+```swift
+let speedLevel: Int32?
+```
+
+候选保留0至4，其他值为空；文档对具体机型为三档或五档尚无确定解释，不从此值建立可写设置能力。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV10speedLevels5Int32VSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Int32 | `s:s5Int32V` |
+
+<a id="api-b312ce85096b91056c6c"></a>
+
+### PrinterInfo.supportsCompression
+
+可选的设备压缩支持标记。
+
+```swift
+let supportsCompression: Bool?
+```
+
+只将0和1映射为假和真；其他值为空。没有对应压缩算法协议，标记不启用压缩打印。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV19supportsCompressionSbSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Bool | `s:Sb` |
+
+<a id="api-1ebbb6aa08255fbba011"></a>
+
+### PrinterInfo.supportsNfc
+
+可选的设备NFC能力标记。
+
+```swift
+let supportsNfc: Bool?
+```
+
+只将0和1映射为假和真；其他值为空。NFC剩余数量存在类型与长度冲突，本轮不公开数量或纸张尺寸。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV11supportsNfcSbSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Bool | `s:Sb` |
+
+<a id="api-02081fda0b75e2695c8a"></a>
+
+### PrinterInfo.supportsRtc
+
+可选的设备RTC能力标记。
+
+```swift
+let supportsRtc: Bool?
+```
+
+只将0和1映射为假和真；其他值为空。标记不代表本轮提供设置时间指令，也不是功能已完成硬件验收的证明。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV11supportsRtcSbSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Bool | `s:Sb` |
+
+<a id="api-c55d39df3a5c4b91db7c"></a>
+
+### PrinterInfo.uidHex
+
+打印机回报的12字节UID。
+
+```swift
+let uidHex: String?
+```
+
+以完整24位小写十六进制保留，包括零字节；UID不被认定为产品序列号，未知时为空。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A4InfoV6uidHexSSSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| String | `s:SS` |
 
 <a id="api-1d5ad0ccf40ef0036743"></a>
 
@@ -1144,7 +1613,7 @@ func cancel(_ requestID: RequestID)
 @discardableResult func connectBle(device: DiscoveredPrinter, completion: @escaping @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void, onDisconnected: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void = { _ in }) -> RequestID
 ```
 
-内部连接超时10秒，每Manager至多一台设备。按原设备名推荐收录型号，未知名失败1004并要求显式选择，不猜UUID/协议。成功返回ConnectionInfo；之后意外丢失至多交付一次onDisconnected，默认回调为空闭包，显式清理不触发。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。
+内部连接超时10秒，每Manager至多一台设备。按原设备名推荐收录型号，未知名失败1004并要求显式选择，不猜UUID/协议。成功返回ConnectionInfo；之后意外丢失至多交付一次onDisconnected，默认回调为空闭包，显式清理不触发。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。 当前版本在通信open成功后结束open计时，已采用支持方言的型号通过原FIFO附加最多1000ms自动设备信息查询；连接结果的printerInfo可为空，可选回读失败不使可用连接失败。不支持型号不探测，没有自动重试。
 
 文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC10connectBle6device10completion14onDisconnectedAA9RequestIDVAA010DiscoveredA0V_yAA0C6ResultVyAA14ConnectionInfoVGYbScMYccyAMyytGYbScMYcctF`
 
@@ -1171,7 +1640,7 @@ func cancel(_ requestID: RequestID)
 @discardableResult func connectBle(device: DiscoveredPrinter, model: PrinterModel, completion: @escaping @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void, onDisconnected: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void = { _ in }) -> RequestID
 ```
 
-内部连接超时10秒，每Manager至多一台设备。显式选择收录型号提供通信/打印配置，覆盖名称推荐；选择不是硬件认证。成功返回ConnectionInfo；之后意外丢失至多交付一次onDisconnected，默认回调为空闭包，显式清理不触发。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。
+内部连接超时10秒，每Manager至多一台设备。显式选择收录型号提供通信/打印配置，覆盖名称推荐；选择不是硬件认证。成功返回ConnectionInfo；之后意外丢失至多交付一次onDisconnected，默认回调为空闭包，显式清理不触发。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。 当前版本在通信open成功后结束open计时，已采用支持方言的型号通过原FIFO附加最多1000ms自动设备信息查询；连接结果的printerInfo可为空，可选回读失败不使可用连接失败。不支持型号不探测，没有自动重试。
 
 文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC10connectBle6device5model10completion14onDisconnectedAA9RequestIDVAA010DiscoveredA0V_AA0A5ModelOyAA0C6ResultVyAA14ConnectionInfoVGYbScMYccyAPyytGYbScMYcctF`
 
@@ -1202,6 +1671,31 @@ func cancel(_ requestID: RequestID)
 取消未完成请求、停止发现并回收当前连接；终态与清理完成按既有顺序交付。可重复调用，完成后Manager可再次连接；不会触发本次连接的意外断连回调。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。
 
 文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC10disconnect10completionAA9RequestIDVyAA0C6ResultVyytGYbScMYcc_tF`
+
+符号种类：`swift.method`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| MainActor | `s:ScM` |
+| ManagerResult | `s:10PrinterSDK13ManagerResultV` |
+| RequestID | `s:10PrinterSDK9RequestIDV` |
+| Void | `s:s4Voida` |
+
+<a id="api-905d72cb5c719dad1593"></a>
+
+### PrinterManager.getStatus(completion:)
+
+主动请求本次设备状态，状态值统一经监听通知。
+
+```swift
+@discardableResult func getStatus(completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID
+```
+
+已采用LT-M90的受支持BLE／SPP后端经原DeviceIoExecutor/FIFO发送GS a 00，等待并校验裸4字节回复；立即返回请求标识，主线程异步唯一回调ManagerResult<Void>，value为空、completion=NONE、outputMayHaveOccurred=false。无监听仍完成并更新缓存，同值查询仍各有请求结果。被动err:记录不能完成本次查询；STATUS实际写入后超时、取消或坏包关闭链路隔离迟到回复，不自动重连。INFO软失败后本连接后续wire查询仍被拒绝。iOS仅BLE，硬件证据来自单机Android。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC9getStatus10completionAA9RequestIDVyAA0C6ResultVyytGYbScMYcc_tF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -1307,32 +1801,6 @@ iOS接收CGImage支持的非动画UIImage，仅强持有不可变图片；返回
 | ManagerResult | `s:10PrinterSDK13ManagerResultV` |
 | RequestID | `s:10PrinterSDK9RequestIDV` |
 | UIImage | `c:objc(cs)UIImage` |
-| Void | `s:s4Voida` |
-
-<a id="api-a7bc7210d55174a7ca0e"></a>
-
-### PrinterManager.queryStatus(completion:)
-
-查询当前型号支持的硬件状态。
-
-```swift
-@discardableResult func queryStatus(completion: @escaping @MainActor @Sendable (ManagerResult<StatusResult>) -> Void) -> RequestID
-```
-
-需要有效连接与已采用型号；在设备FIFO中完成请求/响应，超时经最终回调报告。不支持报告1004，失败不给假正常值；成功的四项状态仍分别可能未知。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。
-
-文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC11queryStatus10completionAA9RequestIDVyAA0C6ResultVyAA0eI0VGYbScMYcc_tF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| MainActor | `s:ScM` |
-| ManagerResult | `s:10PrinterSDK13ManagerResultV` |
-| RequestID | `s:10PrinterSDK9RequestIDV` |
-| StatusResult | `s:10PrinterSDK12StatusResultV` |
 | Void | `s:s4Voida` |
 
 <a id="api-34c7311406a132d0572a"></a>
@@ -1449,7 +1917,7 @@ iOS接收CGImage支持的非动画UIImage，仅强持有不可变图片；返回
 @discardableResult func setPrinterModel(_ model: PrinterModel, completion: @escaping @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void) -> RequestID
 ```
 
-只修改本地默认通信/打印配置，不发送纸型命令或自动重连。必须已连接且业务空闲；忙碌失败1002、失败保留旧配置，成功返回ConnectionInfo并失效先前纸型证据。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。
+只修改本地默认通信/打印配置，不发送纸型命令或自动重连。必须已连接且业务空闲；忙碌失败1002、失败保留旧配置，成功返回ConnectionInfo并失效先前纸型证据。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。 保留本连接自动读取的信息，不重新查询；设备报告不修改采用的型号配置。
 
 文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC03setA5Model_10completionAA9RequestIDVAA0aE0O_yAA0C6ResultVyAA14ConnectionInfoVGYbScMYcctF`
 
@@ -1464,6 +1932,30 @@ iOS接收CGImage支持的非动画UIImage，仅强持有不可变图片；返回
 | ManagerResult | `s:10PrinterSDK13ManagerResultV` |
 | PrinterModel | `s:10PrinterSDK0A5ModelO` |
 | RequestID | `s:10PrinterSDK9RequestIDV` |
+| Void | `s:s4Voida` |
+
+<a id="api-d73e14d137d29010fa9b"></a>
+
+### PrinterManager.setStatusListener(_:)
+
+替换或解除当前Manager的单一状态监听。
+
+```swift
+func setStatusListener(_ listener: (@MainActor @Sendable (StatusResult) -> Void)?)
+```
+
+传null／nil解除，不取消已发getStatus；同步修改监听槽，所有状态异步主线程锁外交付。注册先收到当前快照，离线或无样本为四项未知，不因此查询。连接初始化样本在connect成功回调执行后才发布；断开先重置未知并保留监听，close重置后释放且不再回调。按四公开值去重、有界合并最新值，连接／型号／监听代次使旧待发事件失效。关闭中只接受解除，已关闭注册无保留。监听不是逐次动作日志，也不是查询请求完成通知。
+
+文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC17setStatusListeneryyyAA0E6ResultVYbScMYccSgF`
+
+符号种类：`swift.method`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| MainActor | `s:ScM` |
+| StatusResult | `s:10PrinterSDK12StatusResultV` |
 | Void | `s:s4Voida` |
 
 <a id="api-3f9717fd53ac6f2b1f4b"></a>
@@ -1878,7 +2370,7 @@ let nativeVersion: String
 struct StatusResult
 ```
 
-仅报告缺纸、开盖、纸将尽和切刀错误四项可空布尔值。空值表示该项未知，不是正常；没有受支持响应时查询失败，不能由本地忙闲状态合成结果。
+缺纸、开盖、纸将尽和切刀错误四项可空布尔值。监听注册或无有效样本时四项未知；LT-M90只使coverOpen、paperOut已知，另两项仍未知。查询回复与主动上报统一更新连接缓存，不能从本地发送完成推断机械就绪。
 
 文档 ID：`apple:symbol:s:10PrinterSDK12StatusResultV`
 
@@ -2144,7 +2636,7 @@ case unsupported
 
 ## 编译器公共关系
 
-完整保留 **119** 条继承、协议遵循、成员及合成关系；
+完整保留 **143** 条继承、协议遵循、成员及合成关系；
 source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型也保持原值。
 
 | kind | source | target | 其他编译器字段 |
@@ -2153,6 +2645,9 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `conformsTo` | `s:10PrinterSDK010DiscoveredA0V` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK0A12CapabilitiesV` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK0A12CapabilitiesV` | `s:s8SendableP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK0A4InfoV` | `s:SQ` | `{}` |
+| `conformsTo` | `s:10PrinterSDK0A4InfoV` | `s:s16SendableMetatypeP` | `{}` |
+| `conformsTo` | `s:10PrinterSDK0A4InfoV` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:10PrinterSDK0A5ModelO` | `s:SH` | `{}` |
 | `conformsTo` | `s:10PrinterSDK0A5ModelO` | `s:SQ` | `{}` |
 | `conformsTo` | `s:10PrinterSDK0A5ModelO` | `s:SY` | `{}` |
@@ -2202,8 +2697,26 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:10PrinterSDK0A12CapabilitiesV13imagePrintingAA7SupportOvp` | `s:10PrinterSDK0A12CapabilitiesV` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A12CapabilitiesV15maxPageHeightMmSdSgvp` | `s:10PrinterSDK0A12CapabilitiesV` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A12CapabilitiesV15maxPrintWidthMmSdSgvp` | `s:10PrinterSDK0A12CapabilitiesV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A12CapabilitiesV15statusReportingAA7SupportOvp` | `s:10PrinterSDK0A12CapabilitiesV` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A12CapabilitiesV16labelPositioningAA7SupportOvp` | `s:10PrinterSDK0A12CapabilitiesV` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A12CapabilitiesV18paperTypeSelectionAA7SupportOvp` | `s:10PrinterSDK0A12CapabilitiesV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A4InfoV10deviceNameSSSgvp` | `s:10PrinterSDK0A4InfoV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A4InfoV10speedLevels5Int32VSgvp` | `s:10PrinterSDK0A4InfoV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A4InfoV11reportedDpis6UInt32VSgvp` | `s:10PrinterSDK0A4InfoV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A4InfoV11supportsNfcSbSgvp` | `s:10PrinterSDK0A4InfoV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A4InfoV11supportsRtcSbSgvp` | `s:10PrinterSDK0A4InfoV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A4InfoV12densityLevels5Int32VSgvp` | `s:10PrinterSDK0A4InfoV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A4InfoV12manufacturerSSSgvp` | `s:10PrinterSDK0A4InfoV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A4InfoV13externalPowerSbSgvp` | `s:10PrinterSDK0A4InfoV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A4InfoV13paperTypeCodes5Int32VSgvp` | `s:10PrinterSDK0A4InfoV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A4InfoV14batteryPercents5Int32VSgvp` | `s:10PrinterSDK0A4InfoV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A4InfoV15reportedVersions6UInt32VSgvp` | `s:10PrinterSDK0A4InfoV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A4InfoV16protocolVerifiedSbvp` | `s:10PrinterSDK0A4InfoV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A4InfoV17maxPrintWidthDotss6UInt32VSgvp` | `s:10PrinterSDK0A4InfoV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A4InfoV19supportsCompressionSbSgvp` | `s:10PrinterSDK0A4InfoV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A4InfoV27printheadTemperatureCelsiuss5Int32VSgvp` | `s:10PrinterSDK0A4InfoV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A4InfoV6uidHexSSSgvp` | `s:10PrinterSDK0A4InfoV` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A4InfoV8hasErrorSbSgvp` | `s:10PrinterSDK0A4InfoV` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A5ModelO5ltM90yA2CmF` | `s:10PrinterSDK0A5ModelO` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A5ModelO8rawValueACSgSS_tcfc` | `s:10PrinterSDK0A5ModelO` | `{"sourceOrigin":{"displayName":"RawRepresentable.init(rawValue:)","identifier":"s:SY8rawValuexSg03RawB0Qz_tcfc"}}` |
 | `memberOf` | `s:10PrinterSDK0A7ManagerC03setA5Model_10completionAA9RequestIDVAA0aE0O_yAA0C6ResultVyAA14ConnectionInfoVGYbScMYcctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
@@ -2211,16 +2724,17 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:10PrinterSDK0A7ManagerC10connectBle6device5model10completion14onDisconnectedAA9RequestIDVAA010DiscoveredA0V_AA0A5ModelOyAA0C6ResultVyAA14ConnectionInfoVGYbScMYccyAPyytGYbScMYcctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7ManagerC10disconnect10completionAA9RequestIDVyAA0C6ResultVyytGYbScMYcc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7ManagerC10printImage_7widthMm06heightG010completionAA9RequestIDVSo7UIImageC_S2dyAA0C6ResultVyytGYbScMYcctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
-| `memberOf` | `s:10PrinterSDK0A7ManagerC11queryStatus10completionAA9RequestIDVyAA0C6ResultVyAA0eI0VGYbScMYcc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7ManagerC12capabilities10completionAA9RequestIDVyAA0C6ResultVyAA0A12CapabilitiesVGYbScMYcc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7ManagerC12setPaperType_10completionAA9RequestIDVAA0eF0O_yAA0C6ResultVyytGYbScMYcctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7ManagerC15locateNextLabel10completionAA9RequestIDVyAA0C6ResultVyytGYbScMYcc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7ManagerC17printEncodedImage_7widthMm06heightH010completionAA9RequestIDV10Foundation4DataV_S2dyAA0C6ResultVyytGYbScMYcctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC17setStatusListeneryyyAA0E6ResultVYbScMYccSgF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7ManagerC5close10completionAA9RequestIDVyAA0C6ResultVyytGYbScMYcc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7ManagerC6cancelyyAA9RequestIDVF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7ManagerC7scanBLE10completionAA9RequestIDVyAA0C6ResultVySayAA010DiscoveredA0VGGYbScMYcc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7ManagerC7sdkInfo10completionAA9RequestIDVyAA0C6ResultVyAA7SDKInfoVGYbScMYcc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7ManagerC7sendRaw_10completionAA9RequestIDV10Foundation4DataV_yAA0C6ResultVyytGYbScMYcctF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
+| `memberOf` | `s:10PrinterSDK0A7ManagerC9getStatus10completionAA9RequestIDVyAA0C6ResultVyytGYbScMYcc_tF` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK0A7ManagerCACycfc` | `s:10PrinterSDK0A7ManagerC` | `{}` |
 | `memberOf` | `s:10PrinterSDK12StatusResultV11cutterErrorSbSgvp` | `s:10PrinterSDK12StatusResultV` | `{}` |
 | `memberOf` | `s:10PrinterSDK12StatusResultV12paperNearEndSbSgvp` | `s:10PrinterSDK12StatusResultV` | `{}` |
@@ -2234,6 +2748,7 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:10PrinterSDK13ManagerResultV7outcomeAA0C7OutcomeOvp` | `s:10PrinterSDK13ManagerResultV` | `{}` |
 | `memberOf` | `s:10PrinterSDK13ManagerResultV9isSuccessSbvp` | `s:10PrinterSDK13ManagerResultV` | `{}` |
 | `memberOf` | `s:10PrinterSDK13ManagerResultV9requestIDAA07RequestF0Vvp` | `s:10PrinterSDK13ManagerResultV` | `{}` |
+| `memberOf` | `s:10PrinterSDK14ConnectionInfoV07printerD0AA0aD0VSgvp` | `s:10PrinterSDK14ConnectionInfoV` | `{}` |
 | `memberOf` | `s:10PrinterSDK14ConnectionInfoV5modelAA0A5ModelOSgvp` | `s:10PrinterSDK14ConnectionInfoV` | `{}` |
 | `memberOf` | `s:10PrinterSDK14ConnectionInfoV6deviceAA010DiscoveredA0Vvp` | `s:10PrinterSDK14ConnectionInfoV` | `{}` |
 | `memberOf` | `s:10PrinterSDK14ManagerOutcomeO7failureyA2CmF` | `s:10PrinterSDK14ManagerOutcomeO` | `{}` |
@@ -2252,6 +2767,7 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:10PrinterSDK9PaperTypeO10continuousyA2CmF` | `s:10PrinterSDK9PaperTypeO` | `{}` |
 | `memberOf` | `s:10PrinterSDK9PaperTypeO8gapLabelyA2CmF` | `s:10PrinterSDK9PaperTypeO` | `{}` |
 | `memberOf` | `s:10PrinterSDK9PaperTypeO9blackMarkyA2CmF` | `s:10PrinterSDK9PaperTypeO` | `{}` |
+| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK0A4InfoV` | `s:10PrinterSDK0A4InfoV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK0A5ModelO` | `s:10PrinterSDK0A5ModelO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK12StatusResultV` | `s:10PrinterSDK12StatusResultV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK14ManagerOutcomeO` | `s:10PrinterSDK14ManagerOutcomeO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |

@@ -7,6 +7,21 @@ private final class ChannelContext: @unchecked Sendable {
     let channel: BluetoothByteChannel
     private let lock = NSLock()
     private var failure: ErrorDiagnostic?
+    private var device: OpaquePointer?
+    private var receiver: LTM90PassiveStatusReceiver?
+    func setDevice(_ device: OpaquePointer?) { lock.lock(); self.device = device; lock.unlock() }
+    func setReceiver(_ receiver: LTM90PassiveStatusReceiver?) { lock.lock(); self.receiver = receiver; lock.unlock() }
+    func beforeWrite(_ data: Data) {
+        lock.lock(); let device = device, receiver = receiver; lock.unlock()
+        guard let device, let receiver else { return }
+        var snapshot = psdk_device_state_snapshot()
+        _ = psdk_device_state_snapshot_init(&snapshot, MemoryLayout.size(ofValue: snapshot))
+        guard psdk_device_get_state(device, &snapshot) == 0,
+              snapshot.has_active_operation != 0, snapshot.active_operation_kind == UInt32(PSDK_OP_STATUS) else { return }
+        if receiver.beginStatusReadback(request: data, operationID: snapshot.active_operation_id) {
+            channel.discardReadbackData()
+        }
+    }
     init(_ channel: BluetoothByteChannel) { self.channel = channel }
     func clearError() { lock.lock(); failure = nil; lock.unlock() }
     func record(_ error: Error) {
@@ -47,6 +62,12 @@ private func printConfig(label: CpclProfile? = nil, receipt: ReceiptProfile? = n
 // observationLock guards the service reference. Native device calls are synchronized
 // by the existing C runtime; all printer IO still uses its single executor.
 final class MobilePrinter: @unchecked Sendable {
+    private let channel: BluetoothByteChannel
+    private let channelContext: ChannelContext
+    private let passiveStatusLock = NSLock()
+    private var passiveStatus: LTM90PassiveStatusReceiver?
+    private var infoReadbackFinished = false
+    private var statusObserver: (@Sendable (StatusResult) -> Void)?
     private let lifetime = NSCondition()
     private var users = 0
     private var closing = false
@@ -58,10 +79,12 @@ final class MobilePrinter: @unchecked Sendable {
         try self.init(channel: CoreBluetoothChannel(identifier: bleIdentifier, options: options))
     }
     init(channel: BluetoothByteChannel) throws {
+        self.channel = channel
+        channelContext = ChannelContext(channel)
         try requireCurrentABI()
         var callbacks = psdk_transport_callbacks()
         try check(psdk_transport_callbacks_init(&callbacks, MemoryLayout.size(ofValue: callbacks)))
-        let owned = Unmanaged.passRetained(ChannelContext(channel)).toOpaque()
+        let owned = Unmanaged.passRetained(channelContext).toOpaque()
         callbacks.transport_type = UInt32(PSDK_BLE); callbacks.context = owned
         callbacks.open = { pointer, request in
             let value = context(pointer); value.clearError()
@@ -74,7 +97,9 @@ final class MobilePrinter: @unchecked Sendable {
             let value = context(pointer); value.clearError(); written?.pointee = 0
             do {
                 let packetSize = min(count, 512)
-                let accepted = try value.channel.write(Data(bytes: data!, count: packetSize), control(request!))
+                let packet = Data(bytes: data!, count: packetSize)
+                value.beforeWrite(packet)
+                let accepted = try value.channel.write(packet, control(request!))
                 guard accepted > 0, accepted <= packetSize else { return 2003 }
                 written?.pointee = accepted; return 0
             } catch { value.record(error); return errorCode(error) }
@@ -96,6 +121,7 @@ final class MobilePrinter: @unchecked Sendable {
         callbacks.copy_error = { pointer, output in context(pointer).copyError(output) }
         let result = psdk_device_create(&callbacks, &handle)
         if result != 0 { Unmanaged<ChannelContext>.fromOpaque(owned).release(); throw PrinterSDKError(result) }
+        channelContext.setDevice(handle)
         do {
             guard let handle else { throw PrinterSDKError(1000) }
             let observer = try NativeTransportObserver(device: handle)
@@ -105,6 +131,39 @@ final class MobilePrinter: @unchecked Sendable {
     }
     func useObservationService(_ service: ObservationService) {
         observationLock.lock(); observationService = service; observationLock.unlock()
+    }
+    // No printer IO: selection belongs to the adopted model, independent of BLE.
+    func usePrintProfile(_ profile: PrinterProfile?) {
+        passiveStatusLock.lock()
+        // Re-adopting the same protocol must retain its late-reply framing fence.
+        if profile?.passiveStatusProtocol == .ltM90Candidate, let passiveStatus {
+            passiveStatus.clearStatus(); passiveStatusLock.unlock(); return
+        }
+        let receiver: LTM90PassiveStatusReceiver? = profile?.passiveStatusProtocol == .ltM90Candidate ? LTM90PassiveStatusReceiver() : nil
+        if infoReadbackFinished { receiver?.endInfoReadback() }
+        receiver?.setObserver(statusObserver)
+        let old = passiveStatus; passiveStatus = receiver; channelContext.setReceiver(receiver); passiveStatusLock.unlock()
+        old?.reset(); channel.setReceiveHandler(receiver)
+    }
+    func endAutomaticInfoReadback() {
+        passiveStatusLock.lock(); infoReadbackFinished = true; passiveStatus?.endInfoReadback(); passiveStatusLock.unlock()
+        channel.discardReadbackData()
+    }
+    func hasPassiveStatusReport() -> Bool {
+        passiveStatusLock.lock(); defer { passiveStatusLock.unlock() }; return passiveStatus?.hasPassiveReport ?? false
+    }
+    func passiveStatusSnapshot() -> StatusResult? {
+        passiveStatusLock.lock(); defer { passiveStatusLock.unlock() }; return passiveStatus?.snapshot()
+    }
+    @discardableResult func setStatusObserver(_ observer: (@Sendable (StatusResult) -> Void)?) -> (@Sendable (StatusResult) -> Void)? {
+        passiveStatusLock.lock()
+        let old = statusObserver
+        statusObserver = observer; passiveStatus?.setObserver(observer); passiveStatusLock.unlock()
+        return old
+    }
+    func completeStatusReadback(operationID: UInt64, status: StatusResult?) {
+        passiveStatusLock.lock(); let receiver = passiveStatus; passiveStatusLock.unlock()
+        receiver?.completeStatusReadback(operationID: operationID, status: status)
     }
     private var observations: ObservationService {
         observationLock.lock(); defer { observationLock.unlock() }; return observationService
@@ -311,7 +370,18 @@ final class MobilePrinter: @unchecked Sendable {
         request.data.status.config.query_timeout_ms = configuration.queryTimeoutMilliseconds
         return try execute(&request, timeout: timeoutMilliseconds)
     }
+    func queryPrinterInfo(protocol queryProtocol: PrinterInfoQueryProtocol,
+        timeoutMilliseconds: UInt32 = 5000) throws -> PrintOperation {
+        var request = psdk_execute_request()
+        try check(psdk_execute_request_init(&request, MemoryLayout.size(ofValue: request)))
+        request.kind = UInt32(PSDK_OP_INFO)
+        _ = psdk_info_query_config_init(&request.data.info.config, MemoryLayout<psdk_info_query_config>.size)
+        request.data.info.config.protocol = queryProtocol.rawValue
+        request.data.info.config.query_timeout_ms = timeoutMilliseconds
+        return try execute(&request, timeout: timeoutMilliseconds)
+    }
     public func close() {
+        usePrintProfile(nil)
         let observations = observations
         lifetime.lock()
         if closing {

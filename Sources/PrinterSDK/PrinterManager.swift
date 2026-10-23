@@ -71,9 +71,12 @@ public final class PrinterManager: Sendable {
         state.printImage(image, widthMm: widthMm, heightMm: heightMm, completion: completion)
     }
     #endif
-    @discardableResult public func queryStatus(
-        completion: @escaping @MainActor @Sendable (ManagerResult<StatusResult>) -> Void) -> RequestID {
-        state.queryStatus(completion: completion)
+    @discardableResult public func getStatus(
+        completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        state.getStatus(completion: completion)
+    }
+    public func setStatusListener(_ listener: (@MainActor @Sendable (StatusResult) -> Void)?) {
+        state.setStatusListener(listener)
     }
     @discardableResult public func locateNextLabel(
         completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
@@ -219,6 +222,7 @@ private struct ManagerDelivery: Sendable {
     var completion = CompletionLevel.none
     var output = false
     var value: ManagerValue?
+    var afterMain: (@MainActor @Sendable () -> Void)?
 }
 private typealias ManagerAdmission = @Sendable (MobilePrinter, CancellationContext, @Sendable () throws -> UInt32) throws -> PrintOperation
 // All fields except the independently synchronized cancellation context hold ManagerState.lock.
@@ -237,6 +241,8 @@ private final class ManagerRequest: @unchecked Sendable {
     var admission: ManagerAdmission?
     var timer: DispatchSourceTimer?
     var mediaBinding: UUID?
+    var deadlineApplies = true
+    weak var statusDevice: MobilePrinter?
     init(id: RequestID, timeout: UInt32, deliver: @escaping @Sendable (ManagerDelivery) -> Void) {
         self.id = id; deadline = DispatchTime.now().uptimeNanoseconds + UInt64(timeout) * 1_000_000
         self.deliver = deliver
@@ -278,6 +284,14 @@ private final class ManagerState: @unchecked Sendable {
     private var closing = false
     private var permanentlyClosed = false
     private var cleanupWaiters: [@Sendable () -> Void] = []
+    private var statusListener: (@MainActor @Sendable (StatusResult) -> Void)?
+    private var listenerRevision: UInt64 = 0
+    private var modelRevision: UInt64 = 0
+    private var latestStatus = StatusResult.unknown
+    private var deliveredStatus: StatusResult?
+    private var pendingStatus: (listener: UInt64, connection: UInt64, model: UInt64, value: StatusResult)?
+    private var statusScheduled = false
+    private var statusReady = true
     init(makePrinter: @escaping @Sendable (UUID, BLEOptions) throws -> MobilePrinter,
          makeScanner: @escaping @Sendable () -> BLEScanner = { BLEScanner() },
          connectHooks: ManagerConnectHooks = ManagerConnectHooks(),
@@ -299,7 +313,70 @@ private final class ManagerState: @unchecked Sendable {
             let output = ManagerResult(requestID: id, outcome: outcome, code: result.code,
                 message: result.message, completion: result.completion,
                 outputMayHaveOccurred: result.output, value: value(result.value))
-            DispatchQueue.main.async { completion(output) }
+            DispatchQueue.main.async { completion(output); result.afterMain?() }
+        }
+    }
+    func setStatusListener(_ listener: (@MainActor @Sendable (StatusResult) -> Void)?) {
+        let held: (@MainActor @Sendable (StatusResult) -> Void)? = locked {
+            if listener != nil && (closing || permanentlyClosed) { return nil }
+            let old = statusListener
+            statusListener = listener; listenerRevision &+= 1
+            pendingStatus = nil; deliveredStatus = nil
+            if listener != nil { scheduleStatusLocked(statusReady ? latestStatus : .unknown) }
+            return old
+        }
+        // Captured owner destruction is application code and may reenter.
+        withExtendedLifetime(held) {}
+    }
+    // One pending immutable snapshot, never an unbounded event log. Client code
+    // executes on MainActor after the ownership transaction has unlocked.
+    private func scheduleStatusLocked(_ status: StatusResult) {
+        guard statusListener != nil else { return }
+        pendingStatus = (listenerRevision, epoch, modelRevision, status)
+        guard !statusScheduled else { return }
+        if let deliveredStatus, deliveredStatus.sameConditions(as: status) { pendingStatus = nil; return }
+        statusScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            let delivery: ((@MainActor @Sendable (StatusResult) -> Void), StatusResult)? = self.locked {
+                self.statusScheduled = false
+                guard let pending = self.pendingStatus, let listener = self.statusListener else { return nil }
+                self.pendingStatus = nil
+                guard pending.listener == self.listenerRevision, pending.connection == self.epoch,
+                      pending.model == self.modelRevision else { return nil }
+                if let delivered = self.deliveredStatus, delivered.sameConditions(as: pending.value) { return nil }
+                self.deliveredStatus = pending.value
+                return (listener, pending.value)
+            }
+            if let delivery { delivery.0(delivery.1) }
+        }
+    }
+    private func resetStatusLocked() {
+        modelRevision &+= 1; pendingStatus = nil
+        latestStatus = .unknown
+        scheduleStatusLocked(.unknown)
+    }
+    private func receiveStatus(_ status: StatusResult, device: MobilePrinter, version: UInt64, model: UInt64) {
+        locked {
+            guard epoch == version, modelRevision == model, printer === device, !closing, !permanentlyClosed else { return }
+            // The notification is a change signal. A newer passive frame may
+            // have committed while an older query's notifier was being scheduled.
+            let current = device.passiveStatusSnapshot() ?? .unknown
+            latestStatus = current
+            if statusReady { scheduleStatusLocked(current) }
+        }
+    }
+    private func observeStatusLocked(_ device: MobilePrinter, version: UInt64) {
+        let model = modelRevision
+        device.setStatusObserver { [weak self, weak device] status in
+            guard let self, let device else { return }
+            self.receiveStatus(status, device: device, version: version, model: model)
+        }
+    }
+    private func connectedStatusDelivered(_ device: MobilePrinter, version: UInt64) {
+        locked {
+            guard epoch == version, printer === device, linked, !closing, !permanentlyClosed else { return }
+            statusReady = true; deliveredStatus = nil; scheduleStatusLocked(latestStatus)
         }
     }
     private func accepted(_ request: ManagerRequest, connected: Bool = false) -> Int32? {
@@ -363,6 +440,7 @@ private final class ManagerState: @unchecked Sendable {
     private func abort(_ request: ManagerRequest, code: Int32, onlyUnadmitted: Bool = false) {
         let action: (PrintOperation?, BLEScanner?, MobilePrinter?, ManagerAdmission?) = locked {
             guard request.phase != .ended else { return (nil, nil, nil, nil) }
+            if onlyUnadmitted && !request.deadlineApplies { return (nil, nil, nil, nil) }
             if onlyUnadmitted && request.phase != .queued && request.phase != .preparing { return (nil, nil, nil, nil) }
             request.abortCode = request.abortCode ?? code; request.context.cancel()
             let operation = request.operation, scanner = request.scanner
@@ -400,6 +478,7 @@ private final class ManagerState: @unchecked Sendable {
             else { code = accepted(request) }
             if code == nil {
                 connection = request; epoch &+= 1; request.phase = .preparing
+                resetStatusLocked(); statusReady = false
                 connections.enter()
             }
             return (request, epoch, code)
@@ -413,15 +492,27 @@ private final class ManagerState: @unchecked Sendable {
             guard locked({ epoch == version && !closing && !permanentlyClosed && request.phase != .ended }) else { return }
             do {
                 let profile = try explicitModel?.profile() ?? PrinterProfiles.resolvePrintProfile(bluetoothName: deviceName)
-                let info = ConnectionInfo(identifier: identifier, deviceName: deviceName, printProfile: profile,
-                    configurationSource: profile == nil ? .none : explicitModel == nil ? .nameRecommendation : .explicit)
                 let device = try makePrinter(identifier, options)
+                device.usePrintProfile(profile)
                 let use = locked { () -> Bool in
                     guard epoch == version, !closing, !permanentlyClosed, request.phase != .ended else { return false }
-                    printer = device; return true
+                    printer = device; observeStatusLocked(device, version: version); return true
                 }
                 guard use else { device.close(); return }
                 try device.connect(timeoutMilliseconds: remaining(request))
+                try locked {
+                    guard epoch == version, !closing, !permanentlyClosed, request.phase != .ended else { throw PrinterSDKError(1005) }
+                    // A completed open is no longer subject to its deadline. Optional
+                    // INFO has its own bounded native budget and stays cancellable.
+                    request.deadlineApplies = false
+                    request.timer?.setEventHandler {}; request.timer?.cancel(); request.timer = nil
+                }
+                let reported = try automaticPrinterInfo(device, profile: profile, request: request)
+                try request.context.checkCancellation()
+                guard try device.connectionState() == .connected else { throw PrinterSDKError(2002) }
+                let info = ConnectionInfo(identifier: identifier, deviceName: deviceName, printProfile: profile,
+                    configurationSource: profile == nil ? .none : explicitModel == nil ? .nameRecommendation : .explicit,
+                    printerInfo: reported)
                 let token = try device.observeState(queue: events) { [weak self, weak device] snapshot in
                     guard let self, let device, snapshot.connectionState != .connected else { return }
                     self.lost(device, version: version)
@@ -433,7 +524,10 @@ private final class ManagerState: @unchecked Sendable {
                     // Publish the successful connection and enqueue its result atomically.
                     // A competing cancel either wins before publication, or sees an ended request;
                     // a loss observer can only enqueue after this success has been committed.
-                    _ = finishLocked(request, ManagerDelivery(value: .connection(info)))
+                    _ = finishLocked(request, ManagerDelivery(value: .connection(info), afterMain: { [weak self, weak device] in
+                        guard let self, let device else { return }
+                        self.connectedStatusDelivered(device, version: version)
+                    }))
                     return true
                 }
                 guard accepted else {
@@ -450,12 +544,31 @@ private final class ManagerState: @unchecked Sendable {
                 let old: MobilePrinter? = locked {
                     guard epoch == version, !closing else { return nil }
                     let value = printer; printer = nil; linked = false; connection = nil
-                    connectionInfo = nil; mediaBinding = nil; return value
+                    connectionInfo = nil; mediaBinding = nil; statusReady = true; resetStatusLocked(); return value
                 }
                 old?.close(); finish(request, failure(request.abortCode ?? errorCode(error), error))
             }
         }
         return request.id
+    }
+    private func automaticPrinterInfo(_ device: MobilePrinter, profile: PrinterProfile?, request: ManagerRequest) throws -> PrinterInfo? {
+        guard let queryProtocol = profile?.printerInfoProtocol else { return nil }
+        defer { device.endAutomaticInfoReadback() }
+        // Only the existing native executor performs IO. This worker observes its
+        // terminal result; it is neither a second reader nor an independent queue.
+        let operation = try device.queryPrinterInfo(protocol: queryProtocol, timeoutMilliseconds: 1000)
+        defer { operation.close() }
+        while true {
+            try request.context.checkCancellation()
+            let result: OperationResult?
+            do { result = try operation.result() }
+            catch let error as PrinterSDKError where error.code == 1002 { result = nil }
+            if let result {
+                guard try device.connectionState() == .connected else { throw PrinterSDKError(2002) }
+                return result.snapshot.errorCode == 0 ? result.printerInfo : nil
+            }
+            Thread.sleep(forTimeInterval: 0.01)
+        }
     }
     private func lost(_ device: MobilePrinter, version: UInt64) {
         let event: ((@MainActor @Sendable (ManagerResult<Void>) -> Void)?, RequestID?, [ManagerRequest], Int32) = locked {
@@ -486,8 +599,11 @@ private final class ManagerState: @unchecked Sendable {
                 _ = finishLocked(request, failure(1002))
             } else if let current = connectionInfo {
                 let info = ConnectionInfo(identifier: current.identifier, deviceName: current.deviceName,
-                    printProfile: profile, configurationSource: .explicit)
+                    printProfile: profile, configurationSource: .explicit, printerInfo: current.printerInfo)
                 connectionInfo = info; mediaBinding = nil
+                resetStatusLocked()
+                printer?.usePrintProfile(profile)
+                if let printer { observeStatusLocked(printer, version: epoch) }
                 _ = finishLocked(request, ManagerDelivery(value: .connection(info)))
             } else { _ = finishLocked(request, failure(1002)) }
             return request.id
@@ -550,15 +666,11 @@ private final class ManagerState: @unchecked Sendable {
             return print(options, completion: completion)
         } catch { return reject(errorCode(error), completion: completion) }
     }
-    func queryStatus(completion: @escaping @MainActor @Sendable (ManagerResult<StatusResult>) -> Void) -> RequestID {
-        enqueueOperation(timeout: 5000, completion: completion,
-            value: { if case .status(let value) = $0 { return value }; return nil },
-            configuredAdmission: { profile in
-                { device, _, remaining in
-                    try device.queryStatus(configuration: StatusQueryConfiguration(printerProtocol: profile.printerProtocol),
-                        timeoutMilliseconds: remaining())
-                }
-            })
+    func getStatus(completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
+        enqueueConfigured(timeout: 120000, completion: completion) { device, profile, _, remaining in
+            guard let configuration = profile.statusQueryConfiguration else { throw PrinterSDKError(1004) }
+            return try device.queryStatus(configuration: configuration, timeoutMilliseconds: remaining())
+        }
     }
     func setMedia(_ settings: MediaSettings, timeout: UInt32,
         completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID {
@@ -653,6 +765,7 @@ private final class ManagerState: @unchecked Sendable {
             }
             let register = locked { () -> Bool in
                 request.operation = operation
+                request.statusDevice = device
                 let active = request.phase != .ended
                 if active {
                     request.phase = .admitted
@@ -692,9 +805,13 @@ private final class ManagerState: @unchecked Sendable {
     private func terminal(_ request: ManagerRequest, _ result: OperationResult) {
         var delivery = failure(result.snapshot.errorCode)
         delivery.completion = CompletionLevel(rawValue: result.snapshot.completion) ?? .none
-        delivery.output = result.snapshot.sideEffectsPossible || result.snapshot.bytesSent > 0
+        delivery.output = result.snapshot.kind == 2 ? false : result.snapshot.sideEffectsPossible || result.snapshot.bytesSent > 0
         if !result.diagnostic.message.isEmpty { delivery.message = result.diagnostic.message }
         if let status = result.status { delivery.value = .status(StatusResult(status)) }
+        if result.snapshot.kind == 2 {
+            request.statusDevice?.completeStatusReadback(operationID: result.snapshot.id,
+                status: result.snapshot.errorCode == 0 ? result.status.map(StatusResult.init) : nil)
+        }
         finish(request, delivery)
     }
     func capabilities(_ completion: @escaping @MainActor @Sendable (ManagerResult<PrinterCapabilities>) -> Void) -> RequestID {
@@ -707,6 +824,8 @@ private final class ManagerState: @unchecked Sendable {
                     if let height = result.geometry.maxPageLengthDots {
                         result.physicalHeightMm = Double(height) / profile.dotsPerMm
                     }
+                    result = result.withStatusSupport(query: profile.statusQueryConfiguration != nil,
+                        reporting: profile.passiveStatusProtocol != nil, reported: device.hasPassiveStatusReport())
                 }
                 return .capabilities(result)
             }
@@ -763,6 +882,7 @@ private final class ManagerState: @unchecked Sendable {
             if closing { return (cleanup, false, nil, []) }
             closing = true; epoch &+= 1; linked = false
             connectionInfo = nil; mediaBinding = nil
+            statusReady = true; resetStatusLocked()
             let previous = printer; printer = nil; connection = nil
             connectionObserver?.cancel(); connectionObserver = nil; disconnected = nil
             preparation = DispatchQueue(label: "PrinterSDK.Manager.prepare")
@@ -784,11 +904,22 @@ private final class ManagerState: @unchecked Sendable {
             for request in setup.3 {
                 if let operation = locked({ request.operation }), let result = try? operation.result() { terminal(request, result) }
             }
-            let callbacks = locked { () -> [@Sendable () -> Void] in
-                closing = false
-                let callbacks = cleanupWaiters; cleanupWaiters = []; return callbacks
+            DispatchQueue.main.async { [self] in
+                // Keep closing until this barrier: a background reconnect must
+                // not invalidate the reset queued before cleanup completion.
+                let held: ((@MainActor @Sendable (StatusResult) -> Void)?, [@Sendable () -> Void]) = locked {
+                    closing = false
+                    let old = permanentlyClosed ? statusListener : nil
+                    if permanentlyClosed {
+                        statusListener = nil; listenerRevision &+= 1
+                        pendingStatus = nil
+                    }
+                    let callbacks = cleanupWaiters; cleanupWaiters = []
+                    return (old, callbacks)
+                }
+                for callback in held.1 { callback() }
+                withExtendedLifetime(held.0) {}
             }
-            for callback in callbacks { callback() }
         }
         return setup.0.id
     }

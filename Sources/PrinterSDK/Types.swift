@@ -161,10 +161,21 @@ protocol BluetoothByteChannel: AnyObject, Sendable {
     func close()
     var isOpen: Bool { get }
     func setConnectionObserver(_ observer: ChannelConnectionObserver?)
+    func setReceiveHandler(_ handler: ChannelReceiveHandler?)
+    func discardReadbackData()
 }
 extension BluetoothByteChannel {
     func setConnectionObserver(_ observer: ChannelConnectionObserver?) {}
+    func setReceiveHandler(_ handler: ChannelReceiveHandler?) {}
+    func discardReadbackData() {}
     func read(maxBytes: Int, _ control: IOControl) throws -> Data { throw PrinterSDKError(1004) }
+}
+
+// A protocol-independent hook for the owning model's receive demultiplexer.
+// Implementations synchronize their own state; reset invalidates a closed session.
+protocol ChannelReceiveHandler: AnyObject, Sendable {
+    func receive(_ data: Data) -> Data
+    func reset()
 }
 
 // Holds an independent native observer, never a borrowed device handle. Sessions capture

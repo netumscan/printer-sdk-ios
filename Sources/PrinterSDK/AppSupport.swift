@@ -75,18 +75,29 @@ public struct PrinterCapabilities: Sendable {
     public var imagePrinting: Support { features[.image]?.support ?? .unknown }
     public var paperTypeSelection: Support { features[.media]?.support ?? .unknown }
     public var labelPositioning: Support { features[.feedToNextLabel]?.support ?? .unknown }
-    public var statusQuery: Support { features[.status]?.support ?? .unknown }
+    public var statusQuery: Support { querySupport ?? features[.status]?.support ?? .unknown }
     public var rawCommands: Support { features[.raw]?.support ?? .unknown }
     public var maxPrintWidthMm: Double? { physicalWidthMm }
     public var maxPageHeightMm: Double? { physicalHeightMm }
     var physicalWidthMm: Double? = nil
     var physicalHeightMm: Double? = nil
+    private var querySupport: Support? = nil
+    public var statusReporting: Support { reportingSupport }
+    private var reportingSupport: Support = .unsupported
+    func withStatusSupport(query: Bool, reporting: Bool, reported: Bool) -> PrinterCapabilities {
+        var result = self
+        result.querySupport = query ? .supported : .unsupported
+        result.reportingSupport = reporting ? (reported ? .supported : .unknown) : .unsupported
+        return result
+    }
 }
-/// One immutable terminal result; the hardware response is nil unless the SDK verified one.
+/// One immutable terminal result; response payloads require validated framing.
+/// A candidate protocol response does not establish hardware verification.
 struct OperationResult: Equatable, Sendable {
     public let snapshot: OperationSnapshot
     public let diagnostic: ErrorDiagnostic
     public let status: HardwareStatusResult?
+    public let printerInfo: PrinterInfo?
 }
 enum PrinterSDK {
     public static func info() throws -> SDKInfo {
@@ -124,12 +135,13 @@ func deviceStateValue(_ value: psdk_device_state_snapshot) throws -> DeviceState
         hardwareSampledMonotonicMilliseconds: value.hardware_sampled_monotonic_ms == 0 ? nil : value.hardware_sampled_monotonic_ms,
         connectionGeneration: value.connection_generation)
 }
-func operationResultValue(_ value: psdk_operation_result) -> OperationResult {
+func operationResultValue(_ value: psdk_operation_result, printerInfo: PrinterInfo? = nil) -> OperationResult {
     OperationResult(snapshot: operationSnapshotValue(value.snapshot), diagnostic: diagnosticValue(value.diagnostic),
-        status: value.snapshot.response_valid == 0 ? nil : HardwareStatusResult(
+        status: value.snapshot.kind != UInt32(PSDK_OP_STATUS) || value.snapshot.response_valid == 0 ? nil : HardwareStatusResult(
             knownConditions: value.status.known_conditions, activeConditions: value.status.active_conditions,
             sampledMonotonicMilliseconds: value.status.sampled_monotonic_ms,
-            connectionGeneration: value.status.connection_generation, evidence: value.status.evidence))
+            connectionGeneration: value.status.connection_generation, evidence: value.status.evidence),
+        printerInfo: printerInfo)
 }
 func fixedString<T>(_ value: T) -> String {
     withUnsafeBytes(of: value) { bytes in

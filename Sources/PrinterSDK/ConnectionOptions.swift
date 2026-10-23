@@ -18,7 +18,7 @@ struct ConnectionOptions: Sendable {
     }
 }
 
-/// Adopted local configuration. Name recommendations do not authenticate hardware.
+/// Connection-scoped metadata and adopted local configuration. Names do not authenticate hardware.
 public struct ConnectionInfo: Sendable {
     enum ConfigurationSource: Sendable { case explicit, nameRecommendation, none }
 
@@ -26,6 +26,8 @@ public struct ConnectionInfo: Sendable {
     let deviceName: String?
     let printProfile: PrinterProfile?
     let configurationSource: ConfigurationSource
+    /// Optional one-shot readback from this connection. Query failure leaves it nil.
+    public let printerInfo: PrinterInfo?
 
     public var device: DiscoveredPrinter {
         DiscoveredPrinter(identifier: identifier, name: deviceName, advertisedServices: [], rssi: 127)
@@ -33,9 +35,10 @@ public struct ConnectionInfo: Sendable {
     public var model: PrinterModel? { printProfile?.modelID == "LT-M90" ? .ltM90 : nil }
 
     init(identifier: UUID, deviceName: String?, printProfile: PrinterProfile?,
-         configurationSource: ConfigurationSource) {
+         configurationSource: ConfigurationSource, printerInfo: PrinterInfo? = nil) {
         self.identifier = identifier; self.deviceName = deviceName; self.printProfile = printProfile
         self.configurationSource = printProfile == nil ? .none : configurationSource
+        self.printerInfo = printerInfo
     }
 
     init(options: ConnectionOptions, printProfile: PrinterProfile?, configurationSource: ConfigurationSource) {

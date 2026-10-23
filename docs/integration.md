@@ -1,6 +1,6 @@
 # Android/iOS App接入
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.11` · native `0.3.0` · ABI `3/r2`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.14` · native `0.3.0` · ABI `3/r3`
 
 Android最低API21、Java8；iOS最低iOS15。实际发布后使用同版精确Maven／SwiftPM依赖，核对分发身份与制品摘要；候选或开发契约不表示线上已发布。App负责权限、设备选择和配对，iOS配置NSBluetoothAlwaysUsageDescription。
 

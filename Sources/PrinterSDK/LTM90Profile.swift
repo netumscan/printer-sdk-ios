@@ -5,7 +5,8 @@ enum LTM90Profile {
     /// Nominal protocol DPI and confirmed physical density have different purposes.
     static func printProfile() throws -> PrinterProfile {
         try PrinterProfile.model(printerProtocol: .cpcl, dpi: 203, maxPrintWidthDots: 864,
-                                 dotsPerMm: 8, labelAlignment: .centered, modelID: "LT-M90")
+                                 dotsPerMm: 8, labelAlignment: .centered, modelID: "LT-M90",
+                                 printerInfoProtocol: .ltM90JxigCandidate, passiveStatusProtocol: .ltM90Candidate)
     }
     /// The caller supplies the page-height budget and FORM policy; safe hardware page height is unknown.
     static func cpclProfile(maxLabelHeightDots: UInt32, form: Bool) throws -> CpclProfile {

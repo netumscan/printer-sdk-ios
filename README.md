@@ -1,11 +1,11 @@
 # NETUM Printer SDK for iOS
 
-开发预览 **`0.3.0-preview.11`**，原生 SDK **`0.3.0`**、C ABI **`3/r2`**。
+开发预览 **`0.3.0-preview.14`**，原生 SDK **`0.3.0`**、C ABI **`3/r3`**。
 冻结契约状态为 `candidate`；候选声明本身不证明已经签名、上传或线上发布。
 Swift 模块为 `PrinterSDK`，原生模块为 `CPrinterSDK`，Framework Bundle ID 为 `com.netumscan.printersdk.core`。
 
 [客户指南](docs/README.md) 包含权限、连接、图片、回调、错误码与完整公开 API。
-本版与 `.10` 的公共调用签名一致，更新精确依赖后重新构建；更早的旧移动 API 需要迁移。C ABI 3/r2 保持 27 个 C 导出，不兼容 ABI 2。
+本版将 queryStatus 改为 getStatus，请求结果为 Void，状态统一经 setStatusListener 通知；连接时自动读取可选 ConnectionInfo.printerInfo。移动调用方需要重新编译。C ABI3/r3为28个C导出，不兼容ABI2。
 Swift 包装源码和 C 头随包提供，C++ 核心只以二进制分发。许可和第三方声明见 [LICENSE](LICENSE) 与 [LICENSE-NOTICE.md](LICENSE-NOTICE.md)。
 
 ## 集成
@@ -14,10 +14,10 @@ Swift 包装源码和 C 头随包提供，C++ 核心只以二进制分发。许�
 实际发布后使用精确 SwiftPM 版本：
 
 ```swift
-.package(url: "https://github.com/netumscan/printer-sdk-ios", exact: "0.3.0-preview.11")
+.package(url: "https://github.com/netumscan/printer-sdk-ios", exact: "0.3.0-preview.14")
 ```
 
-候选二进制 URL：[https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.11/XLPrinterSDK.xcframework.zip](https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.11/XLPrinterSDK.xcframework.zip)。准备目录的 `Package.swift` 包含此 URL 与制品校验和；上传前 URL 可能尚不可用。本地独立消费者通过本地 XCFramework 路径验证。
+候选二进制 URL：[https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.14/XLPrinterSDK.xcframework.zip](https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.14/XLPrinterSDK.xcframework.zip)。准备目录的 `Package.swift` 包含此 URL 与制品校验和；上传前 URL 可能尚不可用。本地独立消费者通过本地 XCFramework 路径验证。
 [Samples](https://github.com/netumscan/printer-sdk-samples) 提供精确版本示例，集成时核对对应 SDK 锁。
 
 ## BLE连接与图片
@@ -61,3 +61,11 @@ Flutter 的 PNG/JPEG `Uint8List` 经标准 codec 转为 `FlutterStandardTypedDat
 SDK 不包含分析、广告或遥测上传。SwiftPM 保留 `PrivacyInfo.xcprivacy`，系统启动时间 API 声明 `35F9.1`；App 仍按自身行为完成隐私披露。
 
 `hardware_verified=false`。源码编译、制品消费者与模拟器检查不等于真实无线、纸面或手机峰值内存验收；旧在线版本报告不替代本版验证。SDK 不公开底层作业、图片准备对象、平台句柄或队列控制接口。
+
+## 设备信息与实时状态
+
+每次连接自动查询一次JXIG，随ConnectionInfo.printerInfo返回可选快照，最多额外等待1秒；普通信息查询失败不影响可用连接及打印，真实通信故障按原连接处理。不提供queryPrinterInfo；uidHex不是已确认序列号，reportedVersion不是已确认固件版本，protocolVerified=false。
+
+先注册setStatusListener，再连接。LT-M90支持getStatus主动发送GS a 00；请求回调每次主线程交付一个ManagerResult<Void>，成功仅说明本次新回复已校验，value为空、completion为NONE、outputMayHaveOccurred为false。查询和主动上报统一更新监听，coverOpen／paperOut可变为已知，paperNearEnd／cutterError仍未知。监听重复状态去重，断开／换型号／关闭清空旧状态；disconnect保留监听，close释放监听。查询写出后的超时、取消或坏回复关闭链路，以隔离迟到回复；需显式重连。
+
+2026-10-23同一台LT-M90已完成Android BLE／SPP与iOS BLE正常盖纸变化、主动上报、查询和Full Demo刷新验收。此范围不覆盖其他固件、故障注入、纸面或打印拥塞，整体hardware_verified=false。

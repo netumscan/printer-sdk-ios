@@ -1,8 +1,10 @@
 # 迁移到最小移动API
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.11`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.14`
 
-从 `.10` 升级本版无需调整方法和参数，更新精确依赖后重新构建。UIImage 使用原生不可变图片持有语义，全部属性与像素读取在后台；自定义 provider 的底层数据须保持不变，Data 仍在返回前深复制。native 0.3.0／C ABI3/r2、旧制品、标签和冻结公共契约保持。
+从 `.11` 升级本版需要重新编译移动调用方：将 queryStatus(callback) 改为 getStatus(callback)，原查询返回的状态改由 setStatusListener 统一接收；getStatus 的结果为 Void，只负责本次请求成功、失败或取消。没有公开 queryPrinterInfo，设备信息随每次连接成功的可选 ConnectionInfo.printerInfo 返回。ConnectionInfo 不增加状态字段。
+
+native 仍为0.3.0；当前 C ABI3/r3 保留 r1/r2 旧入口和自然对齐布局，增加INFO查询描述和独立信息读取入口，共28个C／23个JNI导出。需要新信息行为的 native 消费者检查 major==3、revision>=3，并成套使用对应头、库和包装；旧标签及制品保持原样。
 
 以下步骤用于迁移更早的旧移动 API：
 

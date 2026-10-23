@@ -11,9 +11,16 @@ struct PrinterProfile: Equatable, Sendable {
     let dotsPerMm: Double
     let labelAlignment: LabelAlignment
     let modelID: String?
+    let printerInfoProtocol: PrinterInfoQueryProtocol?
+    let passiveStatusProtocol: PassiveStatusProtocol?
+    var statusQueryConfiguration: StatusQueryConfiguration? {
+        passiveStatusProtocol == .ltM90Candidate ? try? StatusQueryConfiguration(printerProtocol: .escpos) : nil
+    }
 
     private init(printerProtocol: PrinterProtocol, dpi: UInt32, maxPrintWidthDots: UInt32,
-                 dotsPerMm: Double, labelAlignment: LabelAlignment, modelID: String? = nil) throws {
+                 dotsPerMm: Double, labelAlignment: LabelAlignment, modelID: String? = nil,
+                 printerInfoProtocol: PrinterInfoQueryProtocol? = nil,
+                 passiveStatusProtocol: PassiveStatusProtocol? = nil) throws {
         guard dpi > 0, dpi <= UInt32(Int32.max),
               printerProtocol != .escpos || dpi <= 255,
               maxPrintWidthDots > 0, maxPrintWidthDots <= 7992, maxPrintWidthDots % 8 == 0,
@@ -21,6 +28,8 @@ struct PrinterProfile: Equatable, Sendable {
         self.printerProtocol = printerProtocol; self.dpi = dpi
         self.maxPrintWidthDots = maxPrintWidthDots; self.dotsPerMm = dotsPerMm
         self.labelAlignment = labelAlignment; self.modelID = modelID
+        self.printerInfoProtocol = printerInfoProtocol
+        self.passiveStatusProtocol = passiveStatusProtocol
     }
 
     static func cpcl(dpi: UInt32, maxPrintWidthDots: UInt32) throws -> PrinterProfile {
@@ -65,9 +74,12 @@ struct PrinterProfile: Equatable, Sendable {
     }
 
     static func model(printerProtocol: PrinterProtocol, dpi: UInt32, maxPrintWidthDots: UInt32,
-                      dotsPerMm: Double, labelAlignment: LabelAlignment, modelID: String) throws -> PrinterProfile {
+                      dotsPerMm: Double, labelAlignment: LabelAlignment, modelID: String,
+                      printerInfoProtocol: PrinterInfoQueryProtocol? = nil,
+                      passiveStatusProtocol: PassiveStatusProtocol? = nil) throws -> PrinterProfile {
         try PrinterProfile(printerProtocol: printerProtocol, dpi: dpi, maxPrintWidthDots: maxPrintWidthDots,
-                           dotsPerMm: dotsPerMm, labelAlignment: labelAlignment, modelID: modelID)
+                           dotsPerMm: dotsPerMm, labelAlignment: labelAlignment, modelID: modelID,
+                           printerInfoProtocol: printerInfoProtocol, passiveStatusProtocol: passiveStatusProtocol)
     }
 
     func cpcl(maxPageHeightDots: UInt32) throws -> CpclProfile {
