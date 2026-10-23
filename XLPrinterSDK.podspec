@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name = 'XLPrinterSDK'
-  s.version = '0.3.0-preview.15'
+  s.version = '0.3.0-preview.16'
   s.summary = 'NETUM printer SDK for iOS.'
   s.homepage = 'https://github.com/netumscan/printer-sdk-ios'
   s.license = { :type => 'Commercial', :file => 'LICENSE' }
@@ -25,8 +25,8 @@ Pod::Spec.new do |s|
     archive="$(mktemp -t xlprintersdk.XXXXXX)"
     trap 'rm -f "$archive"' EXIT
     curl --proto '=https' --tlsv1.2 --fail --location --silent --show-error --max-time 120 --retry 2 \
-      'https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.15/XLPrinterSDK.xcframework.zip' --output "$archive"
-    printf '%s  %s\\n' 'db3ecea6d2a69258781295c8594689af948bfd9935ea28dc4dc2466e714b6d70' "$archive" | shasum -a 256 --check
+      'https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.16/XLPrinterSDK.xcframework.zip' --output "$archive"
+    printf '%s  %s\\n' '1a9fa4064d86a098395815f0ffedec65a83f034c8735ae5c172c5800fda1c7e1' "$archive" | shasum -a 256 --check
     mkdir -p Binaries
     unzip -oq "$archive" -d Binaries
   CMD

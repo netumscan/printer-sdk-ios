@@ -1,6 +1,6 @@
 # Android/iOS App接入
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.15` · native `0.3.0` · ABI `3/r3`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.16` · native `0.3.0` · ABI `3/r3`
 
 Android最低API21、Java8；iOS最低iOS15。实际发布后使用同版精确Maven／SwiftPM依赖，核对分发身份与制品摘要；候选或开发契约不表示线上已发布。App负责权限、设备选择和配对，iOS配置NSBluetoothAlwaysUsageDescription。
 
@@ -130,7 +130,7 @@ UIImage 入口支持可取得 CGImage 的非动画图片；CI-only、矢量／�
 SwiftPM 产品和 Swift 模块为 `XLPrinterSDK`。CocoaPods 接入使用同版公开仓库标签：
 
 ```ruby
-pod 'XLPrinterSDK', :git => 'https://github.com/netumscan/printer-sdk-ios.git', :tag => 'v0.3.0-preview.15'
+pod 'XLPrinterSDK', :git => 'https://github.com/netumscan/printer-sdk-ios.git', :tag => 'v0.3.0-preview.16'
 ```
 
 候选契约本身不证明线上发布；远程标签必须实际发布后才能使用。本地 `:path` 接入须先将校验后的原生附件解压到包的 `Binaries/`，详见包根目录 README。

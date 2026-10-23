@@ -84,6 +84,12 @@ public struct PrinterCapabilities: Sendable {
     private var querySupport: Support? = nil
     public var statusReporting: Support { reportingSupport }
     private var reportingSupport: Support = .unsupported
+    init(features: [PrinterFeature: FeatureSupport], constraints: [PrinterConstraint: ScalarConstraint],
+         geometry: PrinterGeometry) {
+        self.features = features
+        self.constraints = constraints
+        self.geometry = geometry
+    }
     func withStatusSupport(query: Bool, reporting: Bool, reported: Bool) -> PrinterCapabilities {
         var result = self
         result.querySupport = query ? .supported : .unsupported

@@ -1,6 +1,6 @@
 # 迁移到最小移动API
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.15`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.16`
 
 从 `.11` 升级本版需要重新编译移动调用方：将 queryStatus(callback) 改为 getStatus(callback)，原查询返回的状态改由 setStatusListener 统一接收；getStatus 的结果为 Void，只负责本次请求成功、失败或取消。没有公开 queryPrinterInfo，设备信息随每次连接成功的可选 ConnectionInfo.printerInfo 返回。ConnectionInfo 不增加状态字段。
 
