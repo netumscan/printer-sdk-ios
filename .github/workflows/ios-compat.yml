@@ -1,0 +1,33 @@
+name: iOS Xcode 16.4 compatibility preflight
+
+on:
+  push:
+    branches: ['codex/ios-compat-*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-compat-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  xcode-16-4:
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Compile fixed Swift wrapper on all three architectures
+        run: python3 -B Compatibility/check.py --output "$RUNNER_TEMP/ios16-compat-preflight"
+      - name: Upload compile compatibility evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ios16-xcode16-4-compile-compatibility
+          path: ${{ runner.temp }}/ios16-compat-preflight/evidence
+          if-no-files-found: error
+          retention-days: 14

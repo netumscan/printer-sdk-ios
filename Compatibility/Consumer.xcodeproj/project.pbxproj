@@ -1,0 +1,26 @@
+// !$*UTF8*$!
+{
+    archiveVersion = 1;
+    classes = {};
+    objectVersion = 60;
+    objects = {
+        000000000000000000000001 = {isa = PBXProject; buildConfigurationList = 000000000000000000000010; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = 000000000000000000000002; productRefGroup = 000000000000000000000003; projectDirPath = ""; projectRoot = ""; packageReferences = (000000000000000000000014); targets = (000000000000000000000004); };
+        000000000000000000000002 = {isa = PBXGroup; children = (000000000000000000000008, 000000000000000000000003); sourceTree = "<group>"; };
+        000000000000000000000003 = {isa = PBXGroup; children = (000000000000000000000009); name = Products; sourceTree = "<group>"; };
+        000000000000000000000004 = {isa = PBXNativeTarget; buildConfigurationList = 000000000000000000000011; buildPhases = (000000000000000000000005, 000000000000000000000006, 000000000000000000000007); buildRules = (); dependencies = (); name = Consumer; packageProductDependencies = (000000000000000000000015); productName = Consumer; productReference = 000000000000000000000009; productType = "com.apple.product-type.application"; };
+        000000000000000000000005 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (00000000000000000000000A); runOnlyForDeploymentPostprocessing = 0; };
+        000000000000000000000006 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (000000000000000000000016); runOnlyForDeploymentPostprocessing = 0; };
+        000000000000000000000007 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+        000000000000000000000008 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsumerApp.swift; sourceTree = "<group>"; };
+        000000000000000000000009 = {isa = PBXFileReference; explicitFileType = wrapper.application; path = Consumer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+        00000000000000000000000A = {isa = PBXBuildFile; fileRef = 000000000000000000000008; };
+        000000000000000000000010 = {isa = XCConfigurationList; buildConfigurations = (000000000000000000000012); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+        000000000000000000000011 = {isa = XCConfigurationList; buildConfigurations = (000000000000000000000013); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+        000000000000000000000012 = {isa = XCBuildConfiguration; name = Release; buildSettings = {CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 15.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; }; };
+        000000000000000000000013 = {isa = XCBuildConfiguration; name = Release; buildSettings = {CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES; INFOPLIST_KEY_UILaunchScreen_Generation = YES; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks"); MARKETING_VERSION = 0.3.0; PRODUCT_BUNDLE_IDENTIFIER = com.netumscan.printersdk.compatpreflight; PRODUCT_NAME = "$(TARGET_NAME)"; TARGETED_DEVICE_FAMILY = "1,2"; }; };
+        000000000000000000000014 = {isa = XCLocalSwiftPackageReference; relativePath = ..;};
+        000000000000000000000015 = {isa = XCSwiftPackageProductDependency; package = 000000000000000000000014; productName = XLPrinterSDK; };
+        000000000000000000000016 = {isa = PBXBuildFile; productRef = 000000000000000000000015; };
+    };
+    rootObject = 000000000000000000000001;
+}

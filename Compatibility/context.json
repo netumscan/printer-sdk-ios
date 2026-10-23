@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "scope": "xcode_16_4_compile_compatibility_only",
+  "candidate_distribution_version": "0.3.0-preview.16",
+  "public_base_version": "0.3.0-preview.15",
+  "public_base_commit": "346df124ddf9a6e07e59c38b83e2d91b25a9d66a",
+  "source_fix_commit": "1a46011e706fa4a9718f6df735fcc2d96a19c3d9",
+  "swift_module": "XLPrinterSDK",
+  "native_binary_version": "0.3.0-preview.15",
+  "native_binary_url": "https://github.com/netumscan/printer-sdk-ios/releases/download/v0.3.0-preview.15/XLPrinterSDK.xcframework.zip",
+  "native_binary_sha256": "db3ecea6d2a69258781295c8594689af948bfd9935ea28dc4dc2466e714b6d70",
+  "modified_source": "Sources/PrinterSDK/AppSupport.swift",
+  "modified_source_sha256": "d9d5f3ea88733b4354b52de72a6a1d6f648bd477fa95b51b16257a20124660c6",
+  "required_xcode": "16.4",
+  "required_runner_architecture": "arm64",
+  "deployment_target": "15.0",
+  "swift_language_mode": "5",
+  "swift_compilation_mode": "wholemodule",
+  "architectures": [
+    "iphoneos-arm64",
+    "iphonesimulator-arm64",
+    "iphonesimulator-x86_64"
+  ],
+  "runtime_verified": false,
+  "hardware_verified": false,
+  "final_preview16_artifact_verified": false
+}
